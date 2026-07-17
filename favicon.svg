@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Cup body: dark brown/black trapezoid -->
+  <path d="M22 18 L78 18 L70 88 L30 88 Z" fill="#1E1410"/>
+  <!-- Sleeve: terracotta band -->
+  <rect x="24" y="50" width="52" height="20" rx="2" fill="#C07850"/>
+</svg>
