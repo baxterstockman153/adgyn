@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Auth & Users ──
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  name        String?
+  avatarUrl   String?      @map("avatar_url")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  memberships Membership[]
+
+  @@map("users")
+}
+
+model Membership {
+  id      String         @id @default(uuid())
+  userId  String         @map("user_id")
+  orgId   String         @map("org_id")
+  orgType MembershipOrg  @map("org_type")
+  role    MembershipRole @default(member)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId, orgType])
+  @@map("memberships")
+}
+
+enum MembershipOrg {
+  venue
+  brand
+}
+
+enum MembershipRole {
+  owner
+  member
+}
+
+// ── Core Entities ──
+
+model Venue {
+  id              String     @id @default(uuid())
+  name            String
+  slug            String     @unique
+  logoUrl         String?    @map("logo_url")
+  address         String?
+  fallbackMessage String     @default("Check back soon!") @map("fallback_message")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  campaigns       Campaign[]
+
+  @@map("venues")
+}
+
+model Brand {
+  id             String      @id @default(uuid())
+  name           String
+  websiteUrl     String?     @map("website_url")
+  defaultLogoUrl String?     @map("default_logo_url")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  placements     Placement[]
+
+  @@map("brands")
+}
+
+// ── Campaigns & Placements ──
+
+model Campaign {
+  id                String         @id @default(uuid())
+  venueId           String         @map("venue_id")
+  name              String
+  status            CampaignStatus @default(draft)
+  maxPlacements     Int            @default(4) @map("max_placements")
+  sleeveCount       Int            @default(300) @map("sleeve_count")
+  pricePerPlacement Int?           @map("price_per_placement_cents")
+  startedAt         DateTime?      @map("started_at")
+  endedAt           DateTime?      @map("ended_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  venue      Venue       @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  placements Placement[]
+  scans      Scan[]
+
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  draft
+  active
+  completed
+}
+
+model Placement {
+  id          String          @id @default(uuid())
+  campaignId  String          @map("campaign_id")
+  brandId     String          @map("brand_id")
+  slot        Int
+  logoUrl     String?         @map("logo_url")
+  tagline     String
+  ctaText     String          @map("cta_text")
+  ctaUrl      String          @map("cta_url")
+  buttonColor String          @default("#1a1a1a") @map("button_color")
+  status      PlacementStatus @default(pending)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brand    Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  clicks   Click[]
+
+  @@unique([campaignId, slot])
+  @@map("placements")
+}
+
+enum PlacementStatus {
+  pending
+  active
+  completed
+}
+
+// ── Analytics ──
+
+model Scan {
+  id          String   @id @default(uuid())
+  campaignId  String   @map("campaign_id")
+  sessionHash String?  @map("session_hash")
+  userAgent   String?  @map("user_agent")
+  scannedAt   DateTime @default(now()) @map("scanned_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("scans")
+}
+
+model Click {
+  id          String   @id @default(uuid())
+  placementId String   @map("placement_id")
+  sessionHash String?  @map("session_hash")
+  clickedAt   DateTime @default(now()) @map("clicked_at")
+
+  placement Placement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+
+  @@map("clicks")
+}
