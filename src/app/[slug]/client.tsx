@@ -12,6 +12,18 @@ interface Placement {
   buttonColor: string;
 }
 
+/** Get or create a persistent visitor ID (cookie lasts 1 year) */
+function getVisitorId(): string {
+  const key = "adgyn_vid";
+  const match = document.cookie.match(new RegExp(`(?:^|; )${key}=([^;]*)`));
+  if (match) return match[1];
+
+  const vid = crypto.randomUUID();
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+  document.cookie = `${key}=${vid}; expires=${expires}; path=/; SameSite=Lax`;
+  return vid;
+}
+
 export function SleevePageClient({
   venue,
   campaignId,
@@ -21,18 +33,18 @@ export function SleevePageClient({
   campaignId: string;
   placements: Placement[];
 }) {
-  // Track scan on page load
+  // Track scan on page load, sending persistent visitor ID
   useEffect(() => {
+    const visitorId = getVisitorId();
     fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId }),
+      body: JSON.stringify({ campaignId, visitorId }),
     }).catch(() => {});
   }, [campaignId]);
 
   // Click tracking uses server-side redirect — no client JS needed.
-  // The href points to /api/click/[placementId]?url=... which records
-  // the click and redirects. This is 100% reliable on every browser.
+  // The visitor ID cookie is sent automatically with the redirect request.
 
   return (
     <div

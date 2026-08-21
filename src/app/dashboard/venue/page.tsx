@@ -36,11 +36,13 @@ export default async function VenueDashboard() {
           scans: {
             select: {
               id: true,
+              visitorId: true,
               sessionHash: true,
               city: true,
               country: true,
               deviceType: true,
               os: true,
+              isReturning: true,
               scannedAt: true,
             },
           },
@@ -60,10 +62,14 @@ export default async function VenueDashboard() {
   let scanAnalytics = null;
   if (activeCampaign) {
     const scans = activeCampaign.scans;
-    const uniqueHashes = new Set(scans.map((s) => s.sessionHash).filter(Boolean));
+    const uniqueVisitors = new Set(scans.map((s) => s.visitorId || s.sessionHash).filter(Boolean));
     const totalClicks = activeCampaign.placements.reduce(
       (sum, p) => sum + p._count.clicks, 0
     );
+
+    // New vs returning
+    const returningCount = scans.filter((s) => s.isReturning).length;
+    const newCount = scans.length - returningCount;
 
     // Top cities
     const cityCounts: Record<string, number> = {};
@@ -97,9 +103,11 @@ export default async function VenueDashboard() {
 
     scanAnalytics = {
       total: scans.length,
-      unique: uniqueHashes.size,
+      unique: uniqueVisitors.size,
       totalClicks,
       ctr: scans.length > 0 ? ((totalClicks / scans.length) * 100).toFixed(1) : "0",
+      newCount,
+      returningCount,
       topCities,
       deviceCounts,
       osCounts,
@@ -133,11 +141,33 @@ export default async function VenueDashboard() {
           </div>
 
           {/* Key metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <StatCard label="Total Scans" value={scanAnalytics.total} />
-            <StatCard label="Unique Scans" value={scanAnalytics.unique} />
+            <StatCard label="Unique Visitors" value={scanAnalytics.unique} />
             <StatCard label="Total Clicks" value={scanAnalytics.totalClicks} />
             <StatCard label="CTR" value={`${scanAnalytics.ctr}%`} />
+          </div>
+
+          {/* New vs Returning */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-sm font-bold">
+                N
+              </div>
+              <div>
+                <p className="text-lg font-bold">{scanAnalytics.newCount}</p>
+                <p className="text-xs text-gray-400">New visitors</p>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 text-sm font-bold">
+                R
+              </div>
+              <div>
+                <p className="text-lg font-bold">{scanAnalytics.returningCount}</p>
+                <p className="text-xs text-gray-400">Returning visitors</p>
+              </div>
+            </div>
           </div>
 
           {/* Insights row */}

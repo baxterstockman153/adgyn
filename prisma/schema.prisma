@@ -128,6 +128,7 @@ enum PlacementStatus {
 model Scan {
   id          String   @id @default(uuid())
   campaignId  String   @map("campaign_id")
+  visitorId   String?  @map("visitor_id")
   sessionHash String?  @map("session_hash")
   userAgent   String?  @map("user_agent")
   city        String?
@@ -137,6 +138,7 @@ model Scan {
   os          String?
   browser     String?
   referrer    String?
+  isReturning Boolean  @default(false) @map("is_returning")
   scannedAt   DateTime @default(now()) @map("scanned_at")
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -147,6 +149,7 @@ model Scan {
 model Click {
   id          String   @id @default(uuid())
   placementId String   @map("placement_id")
+  visitorId   String?  @map("visitor_id")
   sessionHash String?  @map("session_hash")
   userAgent   String?  @map("user_agent")
   city        String?

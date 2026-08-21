@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 // GET /api/click/[placementId]?url=...
 // Records the click server-side, then redirects to the target URL.
-// This is the reliable pattern — no client-side tracking needed.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ placementId: string }> }
@@ -19,8 +18,10 @@ export async function GET(
   // Record the click
   try {
     const analytics = await extractAnalytics(request);
+    const visitorId = request.cookies.get("adgyn_vid")?.value || null;
+
     await prisma.click.create({
-      data: { placementId, ...analytics },
+      data: { placementId, visitorId, ...analytics },
     });
   } catch (e) {
     // Don't block the redirect if tracking fails
