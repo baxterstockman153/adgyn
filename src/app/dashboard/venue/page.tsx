@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function VenueDashboard() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,6 +33,17 @@ export default async function VenueDashboard() {
             },
             orderBy: { slot: "asc" },
           },
+          scans: {
+            select: {
+              id: true,
+              sessionHash: true,
+              city: true,
+              country: true,
+              deviceType: true,
+              os: true,
+              scannedAt: true,
+            },
+          },
           _count: { select: { scans: true } },
         },
       },
@@ -42,6 +55,57 @@ export default async function VenueDashboard() {
   const activeCampaign = venue.campaigns.find((c) => c.status === "active");
   const pastCampaigns = venue.campaigns.filter((c) => c.status === "completed");
   const draftCampaigns = venue.campaigns.filter((c) => c.status === "draft");
+
+  // Compute analytics for active campaign
+  let scanAnalytics = null;
+  if (activeCampaign) {
+    const scans = activeCampaign.scans;
+    const uniqueHashes = new Set(scans.map((s) => s.sessionHash).filter(Boolean));
+    const totalClicks = activeCampaign.placements.reduce(
+      (sum, p) => sum + p._count.clicks, 0
+    );
+
+    // Top cities
+    const cityCounts: Record<string, number> = {};
+    for (const s of scans) {
+      if (s.city) cityCounts[s.city] = (cityCounts[s.city] || 0) + 1;
+    }
+    const topCities = Object.entries(cityCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    // Device breakdown
+    const deviceCounts: Record<string, number> = {};
+    for (const s of scans) {
+      const d = s.deviceType || "unknown";
+      deviceCounts[d] = (deviceCounts[d] || 0) + 1;
+    }
+
+    // OS breakdown
+    const osCounts: Record<string, number> = {};
+    for (const s of scans) {
+      const o = s.os || "unknown";
+      osCounts[o] = (osCounts[o] || 0) + 1;
+    }
+
+    // Scans by hour of day
+    const hourCounts = new Array(24).fill(0);
+    for (const s of scans) {
+      hourCounts[new Date(s.scannedAt).getHours()]++;
+    }
+    const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+
+    scanAnalytics = {
+      total: scans.length,
+      unique: uniqueHashes.size,
+      totalClicks,
+      ctr: scans.length > 0 ? ((totalClicks / scans.length) * 100).toFixed(1) : "0",
+      topCities,
+      deviceCounts,
+      osCounts,
+      peakHour,
+    };
+  }
 
   return (
     <div>
@@ -58,7 +122,7 @@ export default async function VenueDashboard() {
       </div>
 
       {/* Active Campaign */}
-      {activeCampaign ? (
+      {activeCampaign && scanAnalytics ? (
         <section className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-2 h-2 bg-green-500 rounded-full" />
@@ -68,20 +132,88 @@ export default async function VenueDashboard() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <StatCard
-              label="Total Scans"
-              value={activeCampaign._count.scans}
-            />
-            <StatCard
-              label="Total Clicks"
-              value={activeCampaign.placements.reduce(
-                (sum, p) => sum + p._count.clicks,
-                0
-              )}
-            />
+          {/* Key metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <StatCard label="Total Scans" value={scanAnalytics.total} />
+            <StatCard label="Unique Scans" value={scanAnalytics.unique} />
+            <StatCard label="Total Clicks" value={scanAnalytics.totalClicks} />
+            <StatCard label="CTR" value={`${scanAnalytics.ctr}%`} />
           </div>
 
+          {/* Insights row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            {/* Device breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-400 mb-3">Devices</h3>
+              {Object.entries(scanAnalytics.deviceCounts).map(([device, count]) => (
+                <div key={device} className="flex justify-between items-center mb-1.5">
+                  <span className="text-sm capitalize">{device}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-500 rounded-full"
+                        style={{ width: `${(count / scanAnalytics.total) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400 w-8 text-right">
+                      {Math.round((count / scanAnalytics.total) * 100)}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* OS breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-400 mb-3">Operating System</h3>
+              {Object.entries(scanAnalytics.osCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([os, count]) => (
+                  <div key={os} className="flex justify-between items-center mb-1.5">
+                    <span className="text-sm">{os}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full"
+                          style={{ width: `${(count / scanAnalytics.total) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 w-8 text-right">
+                        {Math.round((count / scanAnalytics.total) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Top cities & peak hour */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-400 mb-3">Location & Timing</h3>
+              {scanAnalytics.topCities.length > 0 ? (
+                <>
+                  {scanAnalytics.topCities.map(([city, count]) => (
+                    <div key={city} className="flex justify-between items-center mb-1.5">
+                      <span className="text-sm">{city}</span>
+                      <span className="text-xs text-gray-400">{count} scans</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-xs text-gray-300 mb-2">No location data yet</p>
+              )}
+              <div className="mt-3 pt-3 border-t border-gray-50">
+                <p className="text-xs text-gray-400">Peak hour</p>
+                <p className="text-sm font-medium">
+                  {scanAnalytics.total > 0
+                    ? `${scanAnalytics.peakHour % 12 || 12}${scanAnalytics.peakHour < 12 ? "am" : "pm"}`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Placements */}
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-50">
               <h3 className="text-sm font-medium text-gray-500">
@@ -92,27 +224,27 @@ export default async function VenueDashboard() {
               <p className="p-4 text-sm text-gray-400">No placements yet.</p>
             ) : (
               <div className="divide-y divide-gray-50">
-                {activeCampaign.placements.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-300 w-4">#{p.slot}</span>
-                      <div>
-                        <p className="font-medium text-sm">{p.brand.name}</p>
-                        <p className="text-xs text-gray-400">{p.tagline}</p>
+                {activeCampaign.placements.map((p) => {
+                  const pCtr =
+                    scanAnalytics.total > 0
+                      ? ((p._count.clicks / scanAnalytics.total) * 100).toFixed(1)
+                      : "0";
+                  return (
+                    <div key={p.id} className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-300 w-4">#{p.slot}</span>
+                        <div>
+                          <p className="font-medium text-sm">{p.brand.name}</p>
+                          <p className="text-xs text-gray-400">{p.tagline}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{p._count.clicks} clicks</p>
+                        <p className="text-xs text-gray-400">{pCtr}% CTR</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{p._count.clicks} clicks</p>
-                      <Link
-                        href={p.ctaUrl}
-                        className="text-xs text-purple-600 hover:underline"
-                        target="_blank"
-                      >
-                        {p.ctaText} &rarr;
-                      </Link>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -167,10 +299,12 @@ export default async function VenueDashboard() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+      <p className="text-2xl font-bold">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
       <p className="text-xs text-gray-400 mt-1">{label}</p>
     </div>
   );

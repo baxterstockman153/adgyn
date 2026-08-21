@@ -130,6 +130,13 @@ model Scan {
   campaignId  String   @map("campaign_id")
   sessionHash String?  @map("session_hash")
   userAgent   String?  @map("user_agent")
+  city        String?
+  region      String?
+  country     String?
+  deviceType  String?  @map("device_type")
+  os          String?
+  browser     String?
+  referrer    String?
   scannedAt   DateTime @default(now()) @map("scanned_at")
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -141,6 +148,13 @@ model Click {
   id          String   @id @default(uuid())
   placementId String   @map("placement_id")
   sessionHash String?  @map("session_hash")
+  userAgent   String?  @map("user_agent")
+  city        String?
+  region      String?
+  country     String?
+  deviceType  String?  @map("device_type")
+  os          String?
+  browser     String?
   clickedAt   DateTime @default(now()) @map("clicked_at")
 
   placement Placement @relation(fields: [placementId], references: [id], onDelete: Cascade)

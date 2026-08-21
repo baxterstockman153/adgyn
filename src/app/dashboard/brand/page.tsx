@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function BrandDashboard() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,6 +32,16 @@ export default async function BrandDashboard() {
               _count: { select: { scans: true } },
             },
           },
+          clicks: {
+            select: {
+              id: true,
+              city: true,
+              country: true,
+              deviceType: true,
+              os: true,
+              clickedAt: true,
+            },
+          },
           _count: { select: { clicks: true } },
         },
       },
@@ -46,13 +58,33 @@ export default async function BrandDashboard() {
   );
 
   const totalImpressions = brand.placements.reduce(
-    (sum, p) => sum + p.campaign._count.scans,
-    0
+    (sum, p) => sum + p.campaign._count.scans, 0
   );
   const totalClicks = brand.placements.reduce(
-    (sum, p) => sum + p._count.clicks,
-    0
+    (sum, p) => sum + p._count.clicks, 0
   );
+  const overallCtr = totalImpressions > 0
+    ? ((totalClicks / totalImpressions) * 100).toFixed(1)
+    : "0";
+
+  // Aggregate click analytics across all placements
+  const allClicks = brand.placements.flatMap((p) => p.clicks);
+
+  const cityCounts: Record<string, number> = {};
+  const deviceCounts: Record<string, number> = {};
+  const osCounts: Record<string, number> = {};
+
+  for (const c of allClicks) {
+    if (c.city) cityCounts[c.city] = (cityCounts[c.city] || 0) + 1;
+    const d = c.deviceType || "unknown";
+    deviceCounts[d] = (deviceCounts[d] || 0) + 1;
+    const o = c.os || "unknown";
+    osCounts[o] = (osCounts[o] || 0) + 1;
+  }
+
+  const topCities = Object.entries(cityCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   return (
     <div>
@@ -70,11 +102,82 @@ export default async function BrandDashboard() {
       </div>
 
       {/* Overview Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-10">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         <StatCard label="Active Campaigns" value={activePlacements.length} />
         <StatCard label="Total Impressions" value={totalImpressions} />
         <StatCard label="Total Clicks" value={totalClicks} />
+        <StatCard label="Overall CTR" value={`${overallCtr}%`} />
       </div>
+
+      {/* Audience Insights (from clicks) */}
+      {allClicks.length > 0 && (
+        <section className="mb-10">
+          <h2 className="font-serif text-lg font-bold mb-4">Your Audience</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Device breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-400 mb-3">Devices</h3>
+              {Object.entries(deviceCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([device, count]) => (
+                  <div key={device} className="flex justify-between items-center mb-1.5">
+                    <span className="text-sm capitalize">{device}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-purple-500 rounded-full"
+                          style={{ width: `${(count / allClicks.length) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 w-8 text-right">
+                        {Math.round((count / allClicks.length) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* OS breakdown */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-400 mb-3">Platform</h3>
+              {Object.entries(osCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([os, count]) => (
+                  <div key={os} className="flex justify-between items-center mb-1.5">
+                    <span className="text-sm">{os}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full"
+                          style={{ width: `${(count / allClicks.length) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 w-8 text-right">
+                        {Math.round((count / allClicks.length) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {/* Top cities */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-400 mb-3">Top Cities</h3>
+              {topCities.length > 0 ? (
+                topCities.map(([city, count]) => (
+                  <div key={city} className="flex justify-between items-center mb-1.5">
+                    <span className="text-sm">{city}</span>
+                    <span className="text-xs text-gray-400">{count} clicks</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-300">No location data yet</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Active Placements */}
       <section className="mb-10">
@@ -107,10 +210,12 @@ export default async function BrandDashboard() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+      <p className="text-2xl font-bold">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
       <p className="text-xs text-gray-400 mt-1">{label}</p>
     </div>
   );
