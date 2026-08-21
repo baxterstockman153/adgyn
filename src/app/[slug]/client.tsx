@@ -31,11 +31,20 @@ export function SleevePageClient({
   }, [campaignId]);
 
   function trackClick(placementId: string) {
-    fetch("/api/click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placementId }),
-    }).catch(() => {});
+    // Use sendBeacon so the request survives page navigation
+    const ok = navigator.sendBeacon(
+      "/api/click",
+      new Blob([JSON.stringify({ placementId })], { type: "application/json" })
+    );
+    // Fallback to fetch with keepalive if sendBeacon fails
+    if (!ok) {
+      fetch("/api/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placementId }),
+        keepalive: true,
+      }).catch(() => {});
+    }
   }
 
   return (
