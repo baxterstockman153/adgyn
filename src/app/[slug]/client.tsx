@@ -30,22 +30,9 @@ export function SleevePageClient({
     }).catch(() => {});
   }, [campaignId]);
 
-  function trackClick(placementId: string) {
-    // Use sendBeacon so the request survives page navigation
-    const ok = navigator.sendBeacon(
-      "/api/click",
-      new Blob([JSON.stringify({ placementId })], { type: "application/json" })
-    );
-    // Fallback to fetch with keepalive if sendBeacon fails
-    if (!ok) {
-      fetch("/api/click", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ placementId }),
-        keepalive: true,
-      }).catch(() => {});
-    }
-  }
+  // Click tracking uses server-side redirect — no client JS needed.
+  // The href points to /api/click/[placementId]?url=... which records
+  // the click and redirects. This is 100% reliable on every browser.
 
   return (
     <div
@@ -101,10 +88,9 @@ export function SleevePageClient({
               {p.tagline}
             </p>
             <a
-              href={p.ctaUrl}
+              href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => trackClick(p.id)}
               className="block w-full py-2 rounded-lg text-white text-[clamp(0.68rem,2vw,0.82rem)] font-semibold text-center mt-1 transition-opacity hover:opacity-85"
               style={{ backgroundColor: p.buttonColor }}
             >
