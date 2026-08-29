@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
@@ -12,6 +13,11 @@ export default async function DashboardPage() {
     where: { email: user.email! },
     include: { memberships: true },
   });
+
+  // Admin users with no membership → send to admin panel
+  if ((!dbUser || dbUser.memberships.length === 0) && isAdmin(user.email)) {
+    redirect("/admin");
+  }
 
   if (!dbUser || dbUser.memberships.length === 0) {
     return (
