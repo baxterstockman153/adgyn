@@ -78,6 +78,7 @@ model Campaign {
   status            CampaignStatus @default(draft)
   maxPlacements     Int            @default(4) @map("max_placements")
   sleeveCount       Int            @default(300) @map("sleeve_count")
+  revenueTarget     Int?           @map("revenue_target_cents")
   pricePerPlacement Int?           @map("price_per_placement_cents")
   startedAt         DateTime?      @map("started_at")
   endedAt           DateTime?      @map("ended_at")

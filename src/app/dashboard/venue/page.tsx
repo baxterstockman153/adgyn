@@ -154,6 +154,14 @@ export default async function VenueDashboard({
             </code>
           </p>
         </div>
+        {process.env.NEXT_PUBLIC_FEATURE_CAMPAIGN_BUILDER === "true" && (
+          <Link
+            href="/dashboard/venue/campaigns/new"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            + New Campaign
+          </Link>
+        )}
       </div>
 
       {/* Campaign Switcher */}
