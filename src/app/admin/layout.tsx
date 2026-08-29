@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { SignOutButton } from "@/components/sign-out-button";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Overview", icon: "📊" },
@@ -60,14 +61,7 @@ export default async function AdminLayout({
             >
               Exit admin
             </Link>
-            <form action="/api/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
+            <SignOutButton className="text-sm text-gray-500 hover:text-gray-300 transition-colors" />
           </div>
         </div>
       </nav>

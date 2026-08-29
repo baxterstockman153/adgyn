@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export default async function DashboardLayout({
   children,
@@ -34,14 +35,7 @@ export default async function DashboardLayout({
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
               {orgType === "venue" ? "Venue" : "Brand"}
             </span>
-            <form action="/api/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                Sign out
-              </button>
-            </form>
+            <SignOutButton />
           </div>
         </div>
       </nav>
