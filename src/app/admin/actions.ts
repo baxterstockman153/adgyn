@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import crypto from "crypto";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -144,4 +145,33 @@ export async function createUser(formData: FormData) {
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");
+}
+
+// ── Invite Actions ──
+
+export async function createInvite(formData: FormData) {
+  await requireAdmin();
+  const orgId = formData.get("orgId") as string;
+  const orgType = formData.get("orgType") as "venue" | "brand";
+  const role = (formData.get("role") as "owner" | "member") || "owner";
+  const email = (formData.get("email") as string) || null;
+
+  if (!orgId || !orgType) throw new Error("Org and type are required");
+
+  const token = crypto.randomBytes(16).toString("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  const invite = await prisma.invite.create({
+    data: {
+      token,
+      orgId,
+      orgType,
+      role,
+      email,
+      expiresAt,
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return invite;
 }
