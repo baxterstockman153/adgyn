@@ -48,8 +48,11 @@ export function SleevePageClient({
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center px-4 py-5 mx-auto max-w-md"
+      className="min-h-screen"
       style={{ background: "#F5F0EB" }}
+    >
+    <div
+      className="flex flex-col items-center px-4 py-5 mx-auto max-w-md"
     >
       {/* Venue Header */}
       <header className="text-center mb-3 w-full">
@@ -123,6 +126,7 @@ export function SleevePageClient({
       <footer className="mt-6 text-xs text-gray-400">
         Promote your business with <strong className="text-gray-500">adgyn</strong>
       </footer>
+    </div>
     </div>
   );
 }
