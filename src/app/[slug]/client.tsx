@@ -48,11 +48,11 @@ export function SleevePageClient({
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center px-3 py-5"
+      className="min-h-screen flex flex-col items-center px-4 py-5"
       style={{ background: "#F5F0EB" }}
     >
       {/* Venue Header */}
-      <header className="text-center mb-3">
+      <header className="text-center mb-3 w-full">
         {venue.logoUrl ? (
           <img
             src={venue.logoUrl}
@@ -61,55 +61,56 @@ export function SleevePageClient({
             className="object-contain mx-auto mb-2"
           />
         ) : null}
-        <h1 className="font-serif text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold tracking-wider uppercase">
+        <h1 className="font-serif text-lg font-bold tracking-wider uppercase">
           {venue.name}
         </h1>
         <div className="w-7 h-[1.5px] bg-gray-900 mx-auto mt-1.5" />
       </header>
 
-      <h2 className="font-serif text-[clamp(1rem,4vw,1.35rem)] font-bold text-center mb-0.5">
+      <h2 className="font-serif text-base font-bold text-center mb-0.5">
         Discover Local Spots
       </h2>
-      <p className="text-[clamp(0.72rem,2.8vw,0.85rem)] text-gray-500 text-center mb-4">
+      <p className="text-sm text-gray-500 text-center mb-4">
         Scanned at {venue.name}
       </p>
 
-      {/* Card Grid */}
-      <div className="grid grid-cols-2 gap-2.5 w-full max-w-[580px]">
+      {/* Card Grid — full width, 2 cols on all screens */}
+      <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
         {placements.map((p, i) => {
           const isLastOdd =
             placements.length % 2 === 1 && i === placements.length - 1;
           return (
           <div
             key={p.id}
-            className={`bg-white rounded-xl shadow-sm p-3 flex flex-col items-center gap-1.5 text-center ${
-              isLastOdd ? "col-start-1 col-end-3 w-[calc(50%-5px)] justify-self-center" : ""
+            className={`bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2 text-center ${
+              isLastOdd ? "col-start-1 col-end-3 w-1/2 justify-self-center" : ""
             }`}
           >
-            <div className="w-20 h-20 flex items-center justify-center">
+            <div className="w-full flex items-center justify-center" style={{ height: "80px" }}>
               {p.logoUrl ? (
                 <img
                   src={p.logoUrl}
                   alt={p.brandName}
-                  className="max-w-[80px] max-h-[80px] object-contain"
+                  style={{ maxWidth: "100%", maxHeight: "80px" }}
+                  className="object-contain"
                 />
               ) : (
-                <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-lg font-bold text-gray-400">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-xl font-bold text-gray-400">
                   {p.brandName[0]}
                 </div>
               )}
             </div>
-            <p className="font-serif text-[clamp(0.72rem,2.4vw,0.9rem)] font-bold leading-tight">
+            <p className="font-serif text-sm font-bold leading-tight">
               {p.brandName}
             </p>
-            <p className="text-[clamp(0.67rem,2vw,0.8rem)] text-gray-500 leading-snug flex-1">
+            <p className="text-xs text-gray-500 leading-snug flex-1">
               {p.tagline}
             </p>
             <a
               href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block w-full py-2 rounded-lg text-white text-[clamp(0.68rem,2vw,0.82rem)] font-semibold text-center mt-1 transition-opacity hover:opacity-85"
+              className="block w-full py-2.5 rounded-lg text-white text-sm font-semibold text-center mt-1 transition-opacity hover:opacity-85"
               style={{ backgroundColor: p.buttonColor }}
             >
               {p.ctaText}
