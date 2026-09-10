@@ -57,7 +57,7 @@ export function SleevePageClient({
           <img
             src={venue.logoUrl}
             alt={venue.name}
-            className="w-[100px] h-[100px] object-contain mx-auto mb-2"
+            className="w-[80px] h-[80px] object-contain mx-auto mb-2"
           />
         )}
         <h1 className="font-serif text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold tracking-wider uppercase">
@@ -82,7 +82,7 @@ export function SleevePageClient({
           <div
             key={p.id}
             className={`bg-white rounded-xl shadow-sm p-3 flex flex-col items-center gap-1.5 text-center ${
-              isLastOdd ? "col-span-2 max-w-[280px] justify-self-center" : ""
+              isLastOdd ? "col-start-1 col-end-3 w-[calc(50%-5px)] justify-self-center" : ""
             }`}
           >
             <div className="w-20 h-20 flex items-center justify-center">
