@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface Placement {
   id: string;
@@ -33,97 +33,145 @@ export function SleevePageClient({
   campaignId: string;
   placements: Placement[];
 }) {
-  // Track scan on page load, sending persistent visitor ID
+  const [vh, setVh] = useState<number | null>(null);
+
   useEffect(() => {
+    // Use window.innerHeight for the real visible viewport (works on all mobile browsers)
+    const update = () => setVh(window.innerHeight);
+    update();
+    window.addEventListener("resize", update);
+
+    // Prevent any scrolling / rubber-banding
+    const prevent = (e: TouchEvent) => e.preventDefault();
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.height = "100%";
+    document.addEventListener("touchmove", prevent, { passive: false });
+
+    // Track scan
     const visitorId = getVisitorId();
     fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ campaignId, visitorId }),
     }).catch(() => {});
-  }, [campaignId]);
 
-  // Click tracking uses server-side redirect — no client JS needed.
-  // The visitor ID cookie is sent automatically with the redirect request.
+    return () => {
+      window.removeEventListener("resize", update);
+      document.removeEventListener("touchmove", prevent);
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.height = "";
+    };
+  }, [campaignId]);
 
   const cardRows = Math.ceil(placements.length / 2);
 
   return (
     <div
-      className="h-[100dvh] overflow-hidden"
-      style={{ background: "#F5F0EB" }}
+      className="overflow-hidden w-full"
+      style={{
+        background: "#F5F0EB",
+        height: vh ? `${vh}px` : "100svh",
+      }}
     >
-    <div
-      className="flex flex-col px-3 pt-3 pb-2 mx-auto max-w-md h-full"
-    >
-      {/* Venue Header — compact */}
-      <header className="text-center shrink-0">
-        {venue.logoUrl ? (
-          <img
-            src={venue.logoUrl}
-            alt={venue.name}
-            style={{ maxWidth: "min(140px, 35vw)", maxHeight: "min(140px, 18dvh)" }}
-            className="object-contain mx-auto mb-1"
-          />
-        ) : null}
-        <h1 className="font-serif text-sm font-bold tracking-wider uppercase">
-          {venue.name}
-        </h1>
-        <p className="text-xs text-gray-400 mt-0.5 mb-2">Discover Local Spots</p>
-      </header>
-
-      {/* Card Grid — stretches to fill remaining space */}
       <div
-        className="grid grid-cols-2 gap-2 w-full flex-1 min-h-0"
-        style={{ gridTemplateRows: `repeat(${cardRows}, 1fr)` }}
+        className="flex flex-col mx-auto max-w-md h-full"
+        style={{ padding: "12px 12px 8px" }}
       >
-        {placements.map((p, i) => {
-          const isLastOdd =
-            placements.length % 2 === 1 && i === placements.length - 1;
-          return (
-          <div
-            key={p.id}
-            className={`bg-white rounded-xl shadow-sm p-3 flex flex-col items-center text-center min-h-0 ${
-              isLastOdd ? "col-start-1 col-end-3 w-1/2 justify-self-center" : ""
-            }`}
-          >
-            <div className="w-full flex-1 flex items-center justify-center min-h-0 mb-1">
-              {p.logoUrl ? (
-                <img
-                  src={p.logoUrl}
-                  alt={p.brandName}
-                  className="object-contain max-w-full max-h-full"
-                />
-              ) : (
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-lg font-bold text-gray-400">
-                  {p.brandName[0]}
-                </div>
-              )}
-            </div>
-            <p className="font-serif text-xs font-bold leading-tight shrink-0">
-              {p.brandName}
-            </p>
-            <p className="text-[11px] text-gray-500 leading-snug mt-0.5 shrink-0">
-              {p.tagline}
-            </p>
-            <a
-              href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full py-2 rounded-lg text-white text-xs font-semibold text-center mt-1.5 shrink-0 transition-opacity hover:opacity-85"
-              style={{ backgroundColor: p.buttonColor }}
-            >
-              {p.ctaText}
-            </a>
-          </div>
-          );
-        })}
-      </div>
+        {/* Venue Header — compact, fixed size */}
+        <header className="text-center shrink-0 mb-1">
+          {venue.logoUrl ? (
+            <img
+              src={venue.logoUrl}
+              alt={venue.name}
+              style={{ maxWidth: "min(120px, 30vw)", maxHeight: "min(100px, 14vh)" }}
+              className="object-contain mx-auto"
+            />
+          ) : null}
+          <h1 style={{ fontSize: "13px" }} className="font-serif font-bold tracking-wider uppercase mt-1">
+            {venue.name}
+          </h1>
+          <p style={{ fontSize: "11px" }} className="text-gray-400 mt-0.5">
+            Discover Local Spots
+          </p>
+        </header>
 
-      <footer className="text-[10px] text-gray-400 text-center mt-2 shrink-0">
-        Promote your business with <strong className="text-gray-500">adgyn</strong>
-      </footer>
-    </div>
+        {/* Card Grid — stretches to fill all remaining space */}
+        <div
+          className="grid grid-cols-2 w-full flex-1 min-h-0"
+          style={{
+            gap: "8px",
+            gridTemplateRows: `repeat(${cardRows}, 1fr)`,
+          }}
+        >
+          {placements.map((p, i) => {
+            const isLastOdd =
+              placements.length % 2 === 1 && i === placements.length - 1;
+            return (
+              <div
+                key={p.id}
+                className={`bg-white rounded-xl shadow-sm flex flex-col items-center text-center min-h-0 overflow-hidden ${
+                  isLastOdd
+                    ? "col-start-1 col-end-3 w-1/2 justify-self-center"
+                    : ""
+                }`}
+                style={{ padding: "8px 10px" }}
+              >
+                {/* Logo — grows to fill available space */}
+                <div className="w-full flex-1 flex items-center justify-center min-h-0">
+                  {p.logoUrl ? (
+                    <img
+                      src={p.logoUrl}
+                      alt={p.brandName}
+                      className="object-contain"
+                      style={{ maxWidth: "100%", maxHeight: "100%" }}
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-base font-bold text-gray-400">
+                      {p.brandName[0]}
+                    </div>
+                  )}
+                </div>
+                {/* Text + CTA — fixed size, won't shrink */}
+                <p
+                  className="font-serif font-bold leading-tight shrink-0 mt-1"
+                  style={{ fontSize: "12px" }}
+                >
+                  {p.brandName}
+                </p>
+                <p
+                  className="text-gray-500 leading-snug shrink-0 mt-0.5"
+                  style={{ fontSize: "10px" }}
+                >
+                  {p.tagline}
+                </p>
+                <a
+                  href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded-lg text-white font-semibold text-center shrink-0 transition-opacity hover:opacity-85"
+                  style={{
+                    backgroundColor: p.buttonColor,
+                    fontSize: "12px",
+                    padding: "7px 0",
+                    marginTop: "6px",
+                  }}
+                >
+                  {p.ctaText}
+                </a>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <p className="text-center shrink-0 mt-1.5" style={{ fontSize: "9px", color: "#aaa" }}>
+          Promote your business with <strong style={{ color: "#888" }}>adgyn</strong>
+        </p>
+      </div>
     </div>
   );
 }
