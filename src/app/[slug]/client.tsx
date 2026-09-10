@@ -52,33 +52,38 @@ export function SleevePageClient({
       style={{ background: "#F5F0EB" }}
     >
       {/* Venue Header */}
-      <header className="text-center mb-4">
+      <header className="text-center mb-3">
         {venue.logoUrl && (
           <img
             src={venue.logoUrl}
             alt={venue.name}
-            className="w-[72px] h-[72px] object-contain mx-auto mb-1"
+            className="w-[100px] h-[100px] object-contain mx-auto mb-2"
           />
         )}
-        <h1 className="font-serif text-[clamp(1.5rem,6vw,2.2rem)] font-bold tracking-wider uppercase">
+        <h1 className="font-serif text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold tracking-wider uppercase">
           {venue.name}
         </h1>
-        <div className="w-9 h-0.5 bg-gray-900 mx-auto mt-2" />
+        <div className="w-7 h-[1.5px] bg-gray-900 mx-auto mt-1.5" />
       </header>
 
-      <h2 className="font-serif text-[clamp(1.3rem,5.5vw,1.9rem)] font-bold text-center mb-1">
+      <h2 className="font-serif text-[clamp(1rem,4vw,1.35rem)] font-bold text-center mb-0.5">
         Discover Local Spots
       </h2>
-      <p className="text-[clamp(0.78rem,3vw,0.92rem)] text-gray-500 text-center mb-4">
+      <p className="text-[clamp(0.72rem,2.8vw,0.85rem)] text-gray-500 text-center mb-4">
         Scanned at {venue.name}
       </p>
 
       {/* Card Grid */}
       <div className="grid grid-cols-2 gap-2.5 w-full max-w-[580px]">
-        {placements.map((p) => (
+        {placements.map((p, i) => {
+          const isLastOdd =
+            placements.length % 2 === 1 && i === placements.length - 1;
+          return (
           <div
             key={p.id}
-            className="bg-white rounded-xl shadow-sm p-3 flex flex-col items-center gap-1.5 text-center"
+            className={`bg-white rounded-xl shadow-sm p-3 flex flex-col items-center gap-1.5 text-center ${
+              isLastOdd ? "col-span-2 max-w-[280px] justify-self-center" : ""
+            }`}
           >
             <div className="w-20 h-20 flex items-center justify-center">
               {p.logoUrl ? (
@@ -109,7 +114,8 @@ export function SleevePageClient({
               {p.ctaText}
             </a>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <footer className="mt-6 text-xs text-gray-400">
