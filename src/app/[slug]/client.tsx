@@ -53,13 +53,14 @@ export function SleevePageClient({
     >
       {/* Venue Header */}
       <header className="text-center mb-3">
-        {venue.logoUrl && (
+        {venue.logoUrl ? (
           <img
             src={venue.logoUrl}
             alt={venue.name}
-            className="max-w-[15vw] max-h-[15vw] w-auto h-auto object-contain mx-auto mb-2"
+            style={{ maxWidth: "60px", maxHeight: "60px" }}
+            className="object-contain mx-auto mb-2"
           />
-        )}
+        ) : null}
         <h1 className="font-serif text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold tracking-wider uppercase">
           {venue.name}
         </h1>
