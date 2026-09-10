@@ -57,7 +57,7 @@ export function SleevePageClient({
           <img
             src={venue.logoUrl}
             alt={venue.name}
-            style={{ maxWidth: "60px", maxHeight: "60px" }}
+            style={{ maxWidth: "120px", maxHeight: "120px" }}
             className="object-contain mx-auto mb-2"
           />
         ) : null}
