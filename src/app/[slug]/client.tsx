@@ -46,50 +46,53 @@ export function SleevePageClient({
   // Click tracking uses server-side redirect — no client JS needed.
   // The visitor ID cookie is sent automatically with the redirect request.
 
+  const cardRows = Math.ceil(placements.length / 2);
+
   return (
     <div
-      className="min-h-[100dvh]"
+      className="h-[100dvh] overflow-hidden"
       style={{ background: "#F5F0EB" }}
     >
     <div
-      className="flex flex-col items-center justify-between px-3 py-3 mx-auto max-w-md min-h-[100dvh]"
+      className="flex flex-col px-3 pt-3 pb-2 mx-auto max-w-md h-full"
     >
-      {/* Venue Header — scales with viewport */}
-      <header className="text-center w-full">
+      {/* Venue Header — compact */}
+      <header className="text-center shrink-0">
         {venue.logoUrl ? (
           <img
             src={venue.logoUrl}
             alt={venue.name}
-            style={{ maxWidth: "min(140px, 35vw)", maxHeight: "min(140px, 35vw)" }}
+            style={{ maxWidth: "min(140px, 35vw)", maxHeight: "min(140px, 18dvh)" }}
             className="object-contain mx-auto mb-1"
           />
         ) : null}
         <h1 className="font-serif text-sm font-bold tracking-wider uppercase">
           {venue.name}
         </h1>
-        <div className="w-6 h-[1px] bg-gray-900 mx-auto mt-1" />
-        <p className="text-xs text-gray-500 mt-1">Discover Local Spots</p>
+        <p className="text-xs text-gray-400 mt-0.5 mb-2">Discover Local Spots</p>
       </header>
 
-      {/* Card Grid — the main content, gets priority space */}
-      <div className="grid grid-cols-2 gap-2 w-full flex-1 my-3" style={{ alignContent: "center" }}>
+      {/* Card Grid — stretches to fill remaining space */}
+      <div
+        className="grid grid-cols-2 gap-2 w-full flex-1 min-h-0"
+        style={{ gridTemplateRows: `repeat(${cardRows}, 1fr)` }}
+      >
         {placements.map((p, i) => {
           const isLastOdd =
             placements.length % 2 === 1 && i === placements.length - 1;
           return (
           <div
             key={p.id}
-            className={`bg-white rounded-xl shadow-sm p-3 flex flex-col items-center gap-1 text-center ${
+            className={`bg-white rounded-xl shadow-sm p-3 flex flex-col items-center text-center min-h-0 ${
               isLastOdd ? "col-start-1 col-end-3 w-1/2 justify-self-center" : ""
             }`}
           >
-            <div className="w-full flex items-center justify-center" style={{ height: "clamp(50px, 10dvh, 80px)" }}>
+            <div className="w-full flex-1 flex items-center justify-center min-h-0 mb-1">
               {p.logoUrl ? (
                 <img
                   src={p.logoUrl}
                   alt={p.brandName}
-                  style={{ maxWidth: "100%", maxHeight: "100%" }}
-                  className="object-contain"
+                  className="object-contain max-w-full max-h-full"
                 />
               ) : (
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-lg font-bold text-gray-400">
@@ -97,17 +100,17 @@ export function SleevePageClient({
                 </div>
               )}
             </div>
-            <p className="font-serif text-xs font-bold leading-tight">
+            <p className="font-serif text-xs font-bold leading-tight shrink-0">
               {p.brandName}
             </p>
-            <p style={{ fontSize: "11px" }} className="text-gray-500 leading-snug flex-1">
+            <p className="text-[11px] text-gray-500 leading-snug mt-0.5 shrink-0">
               {p.tagline}
             </p>
             <a
               href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block w-full py-2 rounded-lg text-white text-xs font-semibold text-center transition-opacity hover:opacity-85"
+              className="block w-full py-2 rounded-lg text-white text-xs font-semibold text-center mt-1.5 shrink-0 transition-opacity hover:opacity-85"
               style={{ backgroundColor: p.buttonColor }}
             >
               {p.ctaText}
@@ -117,7 +120,7 @@ export function SleevePageClient({
         })}
       </div>
 
-      <footer className="text-[10px] text-gray-400">
+      <footer className="text-[10px] text-gray-400 text-center mt-2 shrink-0">
         Promote your business with <strong className="text-gray-500">adgyn</strong>
       </footer>
     </div>
