@@ -48,7 +48,7 @@ export function SleevePageClient({
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center px-4 py-5"
+      className="min-h-screen flex flex-col items-center px-4 py-5 mx-auto max-w-md"
       style={{ background: "#F5F0EB" }}
     >
       {/* Venue Header */}
