@@ -57,7 +57,7 @@ export function SleevePageClient({
           <img
             src={venue.logoUrl}
             alt={venue.name}
-            className="w-[80px] h-[80px] object-contain mx-auto mb-2"
+            className="w-[48px] h-[48px] object-contain mx-auto mb-2"
           />
         )}
         <h1 className="font-serif text-[clamp(1.1rem,4.5vw,1.5rem)] font-bold tracking-wider uppercase">
