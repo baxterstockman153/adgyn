@@ -119,7 +119,7 @@ export function SleevePageClient({
       </div>
 
       <footer className="mt-6 text-xs text-gray-400">
-        Powered by <strong className="text-gray-500">adgyn</strong>
+        Promote your business with <strong className="text-gray-500">adgyn</strong>
       </footer>
     </div>
   );
