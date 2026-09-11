@@ -99,12 +99,14 @@ export function SleevePageClient({
           </p>
         </header>
 
-        {/* Card Grid — stretches to fill all remaining space */}
+        {/* Card Grid — stretches on mobile, capped on desktop */}
         <div
           className="grid grid-cols-2 w-full flex-1 min-h-0"
           style={{
             gap: "8px",
             gridTemplateRows: `repeat(${cardRows}, 1fr)`,
+            maxHeight: "min(100%, 520px)",
+            alignSelf: "center",
           }}
         >
           {placements.map((p, i) => {
