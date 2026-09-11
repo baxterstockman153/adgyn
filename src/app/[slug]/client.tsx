@@ -78,7 +78,7 @@ export function SleevePageClient({
       }}
     >
       <div
-        className="flex flex-col mx-auto max-w-md h-full"
+        className="flex flex-col mx-auto max-w-sm h-full"
         style={{ padding: "12px 12px 8px" }}
       >
         {/* Venue Header — compact, fixed size */}
@@ -99,14 +99,12 @@ export function SleevePageClient({
           </p>
         </header>
 
-        {/* Card Grid — stretches on mobile, capped on desktop */}
+        {/* Card Grid — stretches to fill all remaining space */}
         <div
           className="grid grid-cols-2 w-full flex-1 min-h-0"
           style={{
             gap: "8px",
             gridTemplateRows: `repeat(${cardRows}, 1fr)`,
-            maxHeight: "min(100%, 520px)",
-            alignSelf: "center",
           }}
         >
           {placements.map((p, i) => {
