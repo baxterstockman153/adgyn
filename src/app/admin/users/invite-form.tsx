@@ -12,15 +12,18 @@ export function InviteForm({
 }) {
   const [orgType, setOrgType] = useState<"venue" | "brand">("venue");
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [emailedTo, setEmailedTo] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
+    const email = (formData.get("email") as string)?.trim() || null;
     startTransition(async () => {
       const invite = await createInvite(formData);
       const host =
         typeof window !== "undefined" ? window.location.origin : "https://app.adgyn.com";
       setInviteLink(`${host}/invite/${invite.token}`);
+      setEmailedTo(invite.emailSent ? email : null);
       setCopied(false);
     });
   }
@@ -47,6 +50,7 @@ export function InviteForm({
             onChange={(e) => {
               setOrgType(e.target.value as "venue" | "brand");
               setInviteLink(null);
+              setEmailedTo(null);
             }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
           >
@@ -106,7 +110,9 @@ export function InviteForm({
         <div className="mt-4 p-3 bg-green-50 rounded-lg flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-green-700 font-medium mb-1">
-              Invite link created! Expires in 7 days.
+              {emailedTo
+                ? `✉️ Emailed to ${emailedTo} · Expires in 7 days.`
+                : "Invite link created! Expires in 7 days."}
             </p>
             <code className="text-xs text-green-800 bg-green-100 px-2 py-1 rounded block truncate">
               {inviteLink}
