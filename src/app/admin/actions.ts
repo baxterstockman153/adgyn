@@ -3,8 +3,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { sendInviteEmail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
+
+// Base URL used to build invite links in server-sent emails (mirrors the
+// client-side window.location.origin fallback in invite-form.tsx).
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.adgyn.com";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -172,6 +177,27 @@ export async function createInvite(formData: FormData) {
     },
   });
 
+  // If an email was supplied, send the invite link. Sending failures never
+  // block invite creation — the link is still returned for manual sharing.
+  let emailSent = false;
+  if (email) {
+    const org =
+      orgType === "venue"
+        ? await prisma.venue.findUnique({ where: { id: orgId }, select: { name: true } })
+        : await prisma.brand.findUnique({ where: { id: orgId }, select: { name: true } });
+    const result = await sendInviteEmail({
+      to: email,
+      inviteUrl: `${APP_URL}/invite/${token}`,
+      orgName: org?.name ?? "your organization",
+      orgType,
+      role,
+    });
+    emailSent = result.sent;
+    if (!result.sent) {
+      console.error("Invite email failed:", result.error);
+    }
+  }
+
   revalidatePath("/admin/users");
-  return invite;
+  return { ...invite, emailSent };
 }
