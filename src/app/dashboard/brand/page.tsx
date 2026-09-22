@@ -106,7 +106,11 @@ export default async function BrandDashboard() {
         <StatCard label="Active Campaigns" value={activePlacements.length} />
         <StatCard label="Total Impressions" value={totalImpressions} />
         <StatCard label="Total Clicks" value={totalClicks} />
-        <StatCard label="Overall CTR" value={`${overallCtr}%`} />
+        <StatCard
+          label="Overall CTR"
+          value={`${overallCtr}%`}
+          tooltip="Click-through rate — the share of impressions (QR scans) that resulted in an ad tap (total clicks ÷ total impressions)."
+        />
       </div>
 
       {/* Audience Insights (from clicks) */}
@@ -210,13 +214,46 @@ export default async function BrandDashboard() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number | string }) {
+function InfoTooltip({ label, text }: { label: string; text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        aria-label={`What is ${label}?`}
+        className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-gray-300 hover:text-gray-500 focus:text-gray-500 focus:outline-none"
+      >
+        <svg viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+          <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a.9.9 0 110 1.8A.9.9 0 018 4zm1 8H7a.5.5 0 010-1h.5V7.5H7a.5.5 0 010-1h1a.5.5 0 01.5.5V11H9a.5.5 0 010 1z" />
+        </svg>
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-48 -translate-x-1/2 rounded-lg bg-gray-900 px-2.5 py-1.5 text-center text-[11px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  tooltip,
+}: {
+  label: string;
+  value: number | string;
+  tooltip?: string;
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
       <p className="text-2xl font-bold">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
-      <p className="text-xs text-gray-400 mt-1">{label}</p>
+      <div className="flex items-center gap-1 mt-1">
+        <p className="text-xs text-gray-400">{label}</p>
+        {tooltip && <InfoTooltip label={label} text={tooltip} />}
+      </div>
     </div>
   );
 }
@@ -262,17 +299,32 @@ function PlacementCard({
       <div className="grid grid-cols-3 gap-2">
         <MiniStat label="Impressions" value={placement.campaign._count.scans} />
         <MiniStat label="Clicks" value={placement._count.clicks} />
-        <MiniStat label="CTR" value={`${ctr}%`} />
+        <MiniStat
+          label="CTR"
+          value={`${ctr}%`}
+          tooltip="Click-through rate — the share of this placement's impressions that resulted in an ad tap (clicks ÷ impressions)."
+        />
       </div>
     </div>
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: number | string }) {
+function MiniStat({
+  label,
+  value,
+  tooltip,
+}: {
+  label: string;
+  value: number | string;
+  tooltip?: string;
+}) {
   return (
     <div className="bg-gray-50 rounded-lg p-2 text-center">
       <p className="text-sm font-bold">{typeof value === "number" ? value.toLocaleString() : value}</p>
-      <p className="text-[10px] text-gray-400">{label}</p>
+      <div className="flex items-center justify-center gap-0.5">
+        <p className="text-[10px] text-gray-400">{label}</p>
+        {tooltip && <InfoTooltip label={label} text={tooltip} />}
+      </div>
     </div>
   );
 }
