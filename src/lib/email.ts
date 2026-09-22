@@ -30,14 +30,20 @@ export async function sendInviteEmail({
     return { sent: false, error: "RESEND_API_KEY not configured" };
   }
 
-  const kind = orgType === "venue" ? "venue" : "brand";
+  const term = orgType === "venue" ? "host" : "guest";
+  const verb = role === "member" ? "help manage" : "manage";
+  const blurb =
+    orgType === "venue"
+      ? "add a QR code to your coffee sleeves and start earning from local advertising."
+      : "advertise on local café sleeves and get discovered by nearby customers.";
   const subject = `You're invited to manage ${orgName} on Adgyn`;
 
   const html = `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
+    <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:bold;letter-spacing:-0.01em;color:#1a1a1a;margin:0 0 24px">ad<span style="color:#7e22ce">gyn</span></div>
     <h1 style="font-size:20px;margin:0 0 16px">You're invited to Adgyn</h1>
     <p style="font-size:15px;line-height:1.5;margin:0 0 12px">
-      You've been invited to manage <strong>${orgName}</strong> (${kind}) as <strong>${role}</strong>.
+      You've been invited to ${verb} <strong>${orgName}</strong> as a ${term} on Adgyn &mdash; ${blurb}
     </p>
     <p style="font-size:15px;line-height:1.5;margin:0 0 24px">
       Click below to set up your account and accept the invite.
@@ -52,7 +58,7 @@ export async function sendInviteEmail({
     <p style="font-size:13px;color:#999;margin:16px 0 0">This invite expires in 7 days.</p>
   </div>`;
 
-  const text = `You've been invited to manage ${orgName} (${kind}) on Adgyn as ${role}.
+  const text = `You've been invited to ${verb} ${orgName} as a ${term} on Adgyn — ${blurb}
 
 Accept your invite: ${inviteUrl}
 
