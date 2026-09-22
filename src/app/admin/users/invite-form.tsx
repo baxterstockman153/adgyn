@@ -85,7 +85,7 @@ export function InviteForm({
             <option value="member">Member</option>
           </select>
         </div>
-        <div className="min-w-[160px]">
+        <div className="flex-1 min-w-[280px]">
           <label className="block text-xs text-gray-400 mb-1">
             Email <span className="text-gray-300">(optional, locks invite)</span>
           </label>
