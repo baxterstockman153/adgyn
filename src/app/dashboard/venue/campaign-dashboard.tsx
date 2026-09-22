@@ -70,7 +70,11 @@ export function CampaignDashboard({
         <StatCard label="Total Scans" value={analytics.total} />
         <StatCard label="Unique Visitors" value={analytics.unique} />
         <StatCard label="Total Clicks" value={analytics.totalClicks} />
-        <StatCard label="CTR" value={`${analytics.ctr}%`} />
+        <StatCard
+          label="CTR"
+          value={`${analytics.ctr}%`}
+          tooltip="Click-through rate — the share of QR scans that resulted in an ad tap (total clicks ÷ total scans)."
+        />
       </div>
 
       {/* New vs Returning */}
@@ -227,13 +231,47 @@ export function CampaignDashboard({
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number | string }) {
+function StatCard({
+  label,
+  value,
+  tooltip,
+}: {
+  label: string;
+  value: number | string;
+  tooltip?: string;
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
       <p className="text-2xl font-bold">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
-      <p className="text-xs text-gray-400 mt-1">{label}</p>
+      <div className="flex items-center gap-1 mt-1">
+        <p className="text-xs text-gray-400">{label}</p>
+        {tooltip && (
+          <span className="group relative inline-flex">
+            <button
+              type="button"
+              aria-label={`What is ${label}?`}
+              className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-gray-300 hover:text-gray-500 focus:text-gray-500 focus:outline-none"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="h-3.5 w-3.5"
+                aria-hidden="true"
+              >
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 3a.9.9 0 110 1.8A.9.9 0 018 4zm1 8H7a.5.5 0 010-1h.5V7.5H7a.5.5 0 010-1h1a.5.5 0 01.5.5V11H9a.5.5 0 010 1z" />
+              </svg>
+            </button>
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-48 -translate-x-1/2 rounded-lg bg-gray-900 px-2.5 py-1.5 text-center text-[11px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            >
+              {tooltip}
+            </span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
