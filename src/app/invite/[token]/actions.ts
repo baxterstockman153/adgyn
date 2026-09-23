@@ -6,22 +6,34 @@ import { redirect } from "next/navigation";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Errors thrown from a Server Action are redacted to a generic "React error
+// #441" in production, so friendly messages must be *returned*, not thrown.
+export type AcceptInviteResult = { ok: false; error: string };
+
 export async function acceptInvite(input: {
   token: string;
   email: string;
   password: string;
   name: string;
-}) {
+}): Promise<AcceptInviteResult> {
   // 1. Look up and validate the invite
   const invite = await prisma.invite.findUnique({
     where: { token: input.token },
   });
 
-  if (!invite) throw new Error("Invalid invite link.");
-  if (invite.usedAt) throw new Error("This invite has already been used.");
-  if (invite.expiresAt < new Date()) throw new Error("This invite has expired.");
+  if (!invite) return { ok: false, error: "This invite link is invalid." };
+  if (invite.usedAt) {
+    return {
+      ok: false,
+      error:
+        "This invite has already been used. If that account is yours, just log in — no need to sign up again.",
+    };
+  }
+  if (invite.expiresAt < new Date()) {
+    return { ok: false, error: "This invite has expired. Ask for a new one." };
+  }
   if (invite.email && invite.email.toLowerCase() !== input.email.toLowerCase()) {
-    throw new Error("This invite is for a different email address.");
+    return { ok: false, error: "This invite is for a different email address." };
   }
 
   // 2. Create Supabase auth user (using service role key for auto-confirm)
@@ -44,9 +56,13 @@ export async function acceptInvite(input: {
     // User might already exist — that's fine, they can still be linked
     if (
       !err.msg?.includes("already") &&
-      !err.message?.includes("already")
+      !err.message?.includes("already") &&
+      !err.error_description?.includes("already")
     ) {
-      throw new Error(err.msg || err.message || "Failed to create account.");
+      return {
+        ok: false,
+        error: err.msg || err.message || "Could not create your account. Please try again.",
+      };
     }
   }
 

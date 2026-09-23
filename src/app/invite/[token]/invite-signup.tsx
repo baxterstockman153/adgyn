@@ -31,10 +31,14 @@ export function InviteSignup({
 
     startTransition(async () => {
       try {
-        await acceptInvite({ token, email, password, name });
+        // On success the action redirects (throws NEXT_REDIRECT, handled by the
+        // framework) and never returns here. A returned result means it failed.
+        const result = await acceptInvite({ token, email, password, name });
+        if (result && !result.ok) setError(result.error);
       } catch (err: unknown) {
+        // Genuinely unexpected (e.g. network). NEXT_REDIRECT is not caught here.
         setError(
-          err instanceof Error ? err.message : "Something went wrong."
+          err instanceof Error ? err.message : "Something went wrong. Please try again."
         );
       }
     });
