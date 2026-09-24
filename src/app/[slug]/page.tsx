@@ -43,6 +43,7 @@ export default async function VenueSleevePage({
 
   const placements = campaign.placements.map((p) => ({
     id: p.id,
+    slot: p.slot,
     brandName: p.brand.name,
     logoUrl: p.logoUrl || p.brand.defaultLogoUrl,
     tagline: p.tagline,
@@ -53,7 +54,7 @@ export default async function VenueSleevePage({
 
   return (
     <SleevePageClient
-      venue={{ name: venue.name, logoUrl: venue.logoUrl }}
+      venue={{ name: venue.name, logoUrl: venue.logoUrl, websiteUrl: venue.websiteUrl }}
       campaignId={campaign.id}
       placements={placements}
     />

@@ -21,9 +21,30 @@ export async function POST(request: NextRequest) {
     isReturning = !!previousScan;
   }
 
-  await prisma.scan.create({
-    data: { campaignId, visitorId, isReturning, ...analytics },
+  // Integrity: flag rapid-repeat scans from the same session as duplicates so
+  // they can be excluded from billable/reported numbers. Only override when the
+  // UA heuristic hasn't already flagged the scan for a stronger reason.
+  let { isBot, botReason } = analytics;
+  if (!isBot) {
+    const tenSecondsAgo = new Date(Date.now() - 10_000);
+    const recent = await prisma.scan.findFirst({
+      where: {
+        campaignId,
+        sessionHash: analytics.sessionHash,
+        scannedAt: { gte: tenSecondsAgo },
+      },
+      select: { id: true },
+    });
+    if (recent) {
+      isBot = true;
+      botReason = "rapid-repeat";
+    }
+  }
+
+  const scan = await prisma.scan.create({
+    data: { campaignId, visitorId, isReturning, ...analytics, isBot, botReason },
+    select: { id: true },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, scanId: scan.id });
 }

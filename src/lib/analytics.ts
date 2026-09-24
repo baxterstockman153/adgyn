@@ -31,6 +31,37 @@ export function parseUserAgent(ua: string | null) {
   return { deviceType, os, browser };
 }
 
+/** Best-effort primary language from an Accept-Language header (e.g. "en-US"). */
+export function parseLanguage(header: string | null): string | null {
+  if (!header) return null;
+  // Take the first, highest-priority tag before any q-weight, e.g.
+  // "en-US,en;q=0.9,es;q=0.8" -> "en-US"
+  const first = header.split(",")[0]?.split(";")[0]?.trim();
+  return first || null;
+}
+
+/**
+ * Heuristic bot / non-human detection from the User-Agent (and absence of one).
+ * Returns a reason string so we can audit *why* something was flagged.
+ * Intentionally conservative: this only catches obvious automated traffic.
+ */
+export function detectBot(ua: string | null): { isBot: boolean; botReason: string | null } {
+  if (!ua || ua.trim().length < 10) {
+    return { isBot: true, botReason: "missing-ua" };
+  }
+  const patterns: [RegExp, string][] = [
+    [/bot|crawler|spider|crawling/i, "bot-ua"],
+    [/headless|phantomjs|puppeteer|playwright|selenium|electron/i, "headless"],
+    [/curl|wget|python-requests|python-urllib|axios|go-http-client|java\/|okhttp|libwww/i, "http-client"],
+    [/facebookexternalhit|slackbot|whatsapp|telegrambot|discordbot|twitterbot|linkedinbot|embedly|preview/i, "link-preview"],
+    [/googlebot|bingbot|yandex|duckduckbot|baiduspider|applebot|ahrefsbot|semrushbot/i, "search-crawler"],
+  ];
+  for (const [re, reason] of patterns) {
+    if (re.test(ua)) return { isBot: true, botReason: reason };
+  }
+  return { isBot: false, botReason: null };
+}
+
 /** Geo-locate IP using free ip-api.com (45 req/min, no key needed) */
 export async function geoFromIp(ip: string): Promise<{
   city: string | null;
@@ -64,6 +95,7 @@ export async function extractAnalytics(request: NextRequest) {
   const userAgent = request.headers.get("user-agent") || undefined;
   const ip = request.headers.get("x-forwarded-for") || "unknown";
   const referrer = request.headers.get("referer") || undefined;
+  const language = parseLanguage(request.headers.get("accept-language")) || undefined;
 
   const sessionHash = createHash("sha256")
     .update(`${ip}-${userAgent}-${new Date().toISOString().slice(0, 13)}`)
@@ -71,6 +103,7 @@ export async function extractAnalytics(request: NextRequest) {
     .slice(0, 16);
 
   const { deviceType, os, browser } = parseUserAgent(userAgent || null);
+  const { isBot, botReason } = detectBot(userAgent || null);
 
   // Fire geo lookup but don't block on failure
   const geo = await geoFromIp(ip);
@@ -79,9 +112,12 @@ export async function extractAnalytics(request: NextRequest) {
     sessionHash,
     userAgent,
     referrer,
+    language,
     deviceType,
     os,
     browser,
+    isBot,
+    botReason: botReason ?? undefined,
     ...geo,
   };
 }

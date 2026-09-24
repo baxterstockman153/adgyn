@@ -50,6 +50,7 @@ model Venue {
   name            String
   slug            String     @unique
   logoUrl         String?    @map("logo_url")
+  websiteUrl      String?    @map("website_url")
   address         String?
   fallbackMessage String     @default("Check back soon!") @map("fallback_message")
   createdAt       DateTime   @default(now()) @map("created_at")
@@ -110,9 +111,10 @@ model Placement {
   status      PlacementStatus @default(pending)
   createdAt   DateTime        @default(now()) @map("created_at")
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  brand    Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  clicks   Click[]
+  campaign    Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brand       Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  clicks      Click[]
+  conversions Conversion[]
 
   @@unique([campaignId, slot])
   @@map("placements")
@@ -155,12 +157,17 @@ model Scan {
   deviceType  String?  @map("device_type")
   os          String?
   browser     String?
+  language    String?
   referrer    String?
   isReturning Boolean  @default(false) @map("is_returning")
+  isBot       Boolean  @default(false) @map("is_bot")
+  botReason   String?  @map("bot_reason")
   scannedAt   DateTime @default(now()) @map("scanned_at")
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
+  @@index([campaignId])
+  @@index([visitorId])
   @@map("scans")
 }
 
@@ -176,9 +183,35 @@ model Click {
   deviceType  String?  @map("device_type")
   os          String?
   browser     String?
+  language    String?
+  slot        Int?
+  dwellMs     Int?     @map("dwell_ms")
+  isBot       Boolean  @default(false) @map("is_bot")
+  botReason   String?  @map("bot_reason")
   clickedAt   DateTime @default(now()) @map("clicked_at")
 
+  placement   Placement    @relation(fields: [placementId], references: [id], onDelete: Cascade)
+  conversions Conversion[]
+
+  @@index([placementId])
+  @@index([visitorId])
+  @@map("clicks")
+}
+
+model Conversion {
+  id          String   @id @default(uuid())
+  clickId     String?  @map("click_id")
+  placementId String   @map("placement_id")
+  value       Int?     // reported conversion value in cents, if any
+  city        String?
+  region      String?
+  country     String?
+  convertedAt DateTime @default(now()) @map("converted_at")
+
+  click     Click?    @relation(fields: [clickId], references: [id], onDelete: SetNull)
   placement Placement @relation(fields: [placementId], references: [id], onDelete: Cascade)
 
-  @@map("clicks")
+  @@index([placementId])
+  @@index([clickId])
+  @@map("conversions")
 }

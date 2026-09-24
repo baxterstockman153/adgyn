@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Placement {
   id: string;
+  slot: number;
   brandName: string;
   logoUrl: string | null;
   tagline: string;
@@ -29,13 +30,18 @@ export function SleevePageClient({
   campaignId,
   placements,
 }: {
-  venue: { name: string; logoUrl: string | null };
+  venue: { name: string; logoUrl: string | null; websiteUrl: string | null };
   campaignId: string;
   placements: Placement[];
 }) {
   const [vh, setVh] = useState<number | null>(null);
+  // When the sleeve page became visible — used to measure dwell (time to tap).
+  // Set in the effect (impure Date.now() must not run during render).
+  const loadedAt = useRef<number>(0);
 
   useEffect(() => {
+    loadedAt.current = Date.now();
+
     // Use window.innerHeight for the real visible viewport (works on all mobile browsers)
     const update = () => setVh(window.innerHeight);
     update();
@@ -84,12 +90,29 @@ export function SleevePageClient({
         {/* Venue Header — compact, fixed size */}
         <header className="text-center shrink-0 mb-1">
           {venue.logoUrl ? (
-            <img
-              src={venue.logoUrl}
-              alt={venue.name}
-              style={{ maxWidth: "min(120px, 30vw)", maxHeight: "min(100px, 14vh)" }}
-              className="object-contain mx-auto"
-            />
+            venue.websiteUrl ? (
+              <a
+                href={venue.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block"
+                aria-label={`Visit ${venue.name}`}
+              >
+                <img
+                  src={venue.logoUrl}
+                  alt={venue.name}
+                  style={{ maxWidth: "min(120px, 30vw)", maxHeight: "min(100px, 14vh)" }}
+                  className="object-contain mx-auto"
+                />
+              </a>
+            ) : (
+              <img
+                src={venue.logoUrl}
+                alt={venue.name}
+                style={{ maxWidth: "min(120px, 30vw)", maxHeight: "min(100px, 14vh)" }}
+                className="object-contain mx-auto"
+              />
+            )
           ) : null}
           <h1 style={{ fontSize: "13px" }} className="font-serif font-bold tracking-wider uppercase mt-1">
             {venue.name}
@@ -149,7 +172,18 @@ export function SleevePageClient({
                   {p.tagline}
                 </p>
                 <a
-                  href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}`}
+                  href={`/api/click/${p.id}?url=${encodeURIComponent(p.ctaUrl)}&slot=${p.slot}`}
+                  onClick={(e) => {
+                    // Rewrite href just before navigation to attach dwell (ms
+                    // from page load to tap). Runs synchronously before the
+                    // browser follows the link.
+                    const dwell = loadedAt.current
+                      ? Math.max(0, Date.now() - loadedAt.current)
+                      : 0;
+                    e.currentTarget.href = `/api/click/${p.id}?url=${encodeURIComponent(
+                      p.ctaUrl
+                    )}&slot=${p.slot}&dwell=${dwell}`;
+                  }}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full rounded-lg text-white font-semibold text-center shrink-0 transition-opacity hover:opacity-85"
