@@ -55,12 +55,14 @@ export function SleevePageClient({
     document.body.style.height = "100%";
     document.addEventListener("touchmove", prevent, { passive: false });
 
-    // Track scan
+    // Track scan — capture the ?src= tag (e.g. "table-topper") so we can tell
+    // which physical surface drove the scan. Untagged = coffee sleeve.
     const visitorId = getVisitorId();
+    const source = new URLSearchParams(window.location.search).get("src");
     fetch("/api/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ campaignId, visitorId }),
+      body: JSON.stringify({ campaignId, visitorId, source }),
     }).catch(() => {});
 
     return () => {

@@ -162,6 +162,7 @@ model Scan {
   isReturning Boolean  @default(false) @map("is_returning")
   isBot       Boolean  @default(false) @map("is_bot")
   botReason   String?  @map("bot_reason")
+  source      String?  // scan surface: e.g. "table-topper"; null/"sleeve" = coffee sleeve
   scannedAt   DateTime @default(now()) @map("scanned_at")
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
