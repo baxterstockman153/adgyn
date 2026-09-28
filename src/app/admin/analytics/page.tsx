@@ -21,6 +21,7 @@ export default async function AnalyticsPage() {
           deviceType: true,
           scannedAt: true,
           campaignId: true,
+          source: true,
         },
       }),
       prisma.click.findMany({
@@ -116,6 +117,20 @@ export default async function AnalyticsPage() {
   const returningPct = humanScans.length
     ? Math.round((returningScans / humanScans.length) * 100)
     : 0;
+
+  // ── Scan source: sleeve vs. table topper (internal attribution) ──
+  const sourceLabel = (src: string | null) => {
+    if (!src) return "Coffee sleeve";
+    if (src === "table-topper") return "Table topper";
+    return src.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+  const sourceCounts: Record<string, number> = {};
+  for (const s of humanScans) {
+    const label = sourceLabel(s.source);
+    sourceCounts[label] = (sourceCounts[label] || 0) + 1;
+  }
+  const sourceRows = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
+  const sourceTotal = humanScans.length;
 
   // ── Audience mix: language ──
   const langCounts: Record<string, number> = {};
@@ -217,6 +232,25 @@ export default async function AnalyticsPage() {
             ))}
         </Card>
       )}
+
+      {/* Scan source: sleeve vs table topper */}
+      <SectionTitle>Scan Source</SectionTitle>
+      <Card className="mb-8">
+        <CardHead>Where scans came from</CardHead>
+        {sourceRows.length === 0 ? (
+          <p className="text-sm text-gray-400">No human scans yet.</p>
+        ) : (
+          <>
+            {sourceRows.map(([label, n]) => (
+              <Row key={label} label={label} value={n} max={sourceTotal} />
+            ))}
+            <p className="text-[11px] text-gray-400 mt-2">
+              Attributed from the QR&apos;s <code>?src=</code> tag. Untagged scans count as
+              coffee sleeve. Internal only — not shown to venues or brands.
+            </p>
+          </>
+        )}
+      </Card>
 
       {/* Position bias + dwell */}
       <SectionTitle>Engagement Quality</SectionTitle>

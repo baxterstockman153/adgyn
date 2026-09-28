@@ -2,8 +2,23 @@ import { prisma } from "@/lib/prisma";
 import { extractAnalytics } from "@/lib/analytics";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Normalize the `?src=` scan-source tag into a short safe slug (e.g.
+ * "table-topper"). Anything empty/"sleeve" is treated as the default coffee
+ * sleeve and stored as null so untagged legacy QR scans stay consistent.
+ */
+function normalizeSource(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .slice(0, 32);
+  if (!slug || slug === "sleeve") return null;
+  return slug;
+}
+
 export async function POST(request: NextRequest) {
-  const { campaignId, visitorId } = await request.json();
+  const { campaignId, visitorId, source } = await request.json();
 
   if (!campaignId) {
     return NextResponse.json({ error: "campaignId required" }, { status: 400 });
@@ -42,7 +57,15 @@ export async function POST(request: NextRequest) {
   }
 
   const scan = await prisma.scan.create({
-    data: { campaignId, visitorId, isReturning, ...analytics, isBot, botReason },
+    data: {
+      campaignId,
+      visitorId,
+      isReturning,
+      ...analytics,
+      isBot,
+      botReason,
+      source: normalizeSource(source),
+    },
     select: { id: true },
   });
 
