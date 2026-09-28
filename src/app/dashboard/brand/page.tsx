@@ -86,20 +86,89 @@ export default async function BrandDashboard() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
+  // Onboarding completeness — based on editable (non-completed) placements.
+  const editablePlacements = brand.placements.filter(
+    (p) => p.campaign.status !== "completed"
+  );
+  const checklist = [
+    { label: "Add your business logo", done: !!brand.defaultLogoUrl },
+    { label: "Add your website", done: !!brand.websiteUrl },
+    {
+      label: "Write a tagline for each ad",
+      done:
+        editablePlacements.length > 0 &&
+        editablePlacements.every((p) => !!p.tagline?.trim()),
+    },
+    {
+      label: "Set where each ad links to",
+      done:
+        editablePlacements.length > 0 &&
+        editablePlacements.every((p) => !!p.ctaUrl?.trim()),
+    },
+  ];
+  const remaining = checklist.filter((c) => !c.done);
+  const profileComplete = remaining.length === 0;
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-serif text-2xl font-bold">{brand.name}</h1>
-        {brand.websiteUrl && (
-          <Link
-            href={brand.websiteUrl}
-            className="text-sm text-purple-600 hover:underline"
-            target="_blank"
-          >
-            {brand.websiteUrl} &rarr;
-          </Link>
-        )}
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-2xl font-bold">{brand.name}</h1>
+          {brand.websiteUrl && (
+            <Link
+              href={brand.websiteUrl}
+              className="text-sm text-purple-600 hover:underline"
+              target="_blank"
+            >
+              {brand.websiteUrl} &rarr;
+            </Link>
+          )}
+        </div>
+        <Link
+          href="/dashboard/brand/edit"
+          className="shrink-0 text-sm px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+        >
+          Edit profile
+        </Link>
       </div>
+
+      {/* Onboarding checklist */}
+      {!profileComplete && (
+        <section className="mb-8 rounded-2xl border border-purple-100 bg-purple-50 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-serif text-base font-bold text-purple-900">
+              Finish setting up your ads
+            </h2>
+            <span className="text-xs text-purple-500">
+              {checklist.length - remaining.length}/{checklist.length} done
+            </span>
+          </div>
+          <ul className="space-y-1.5 mb-4">
+            {checklist.map((item) => (
+              <li key={item.label} className="flex items-center gap-2 text-sm">
+                <span
+                  className={
+                    item.done
+                      ? "text-green-600"
+                      : "text-purple-300"
+                  }
+                >
+                  {item.done ? "✓" : "○"}
+                </span>
+                <span className={item.done ? "text-gray-400 line-through" : "text-gray-700"}>
+                  {item.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/dashboard/brand/edit"
+            className="inline-block text-sm px-4 py-2 rounded-lg bg-purple-700 text-white font-medium hover:bg-purple-800"
+          >
+            Complete your profile
+          </Link>
+        </section>
+      )}
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
