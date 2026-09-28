@@ -4,17 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Normalize the `?src=` scan-source tag into a short safe slug (e.g.
- * "table-topper"). Anything empty/"sleeve" is treated as the default coffee
- * sleeve and stored as null so untagged legacy QR scans stay consistent.
+ * "table-topper"). Untagged scans default to "sleeve" so every scan carries an
+ * explicit source (the coffee sleeve is the baseline QR surface).
  */
-function normalizeSource(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
+function normalizeSource(raw: unknown): string {
+  if (typeof raw !== "string") return "sleeve";
   const slug = raw
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "")
     .slice(0, 32);
-  if (!slug || slug === "sleeve") return null;
-  return slug;
+  return slug || "sleeve";
 }
 
 export async function POST(request: NextRequest) {

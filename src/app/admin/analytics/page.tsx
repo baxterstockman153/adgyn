@@ -120,7 +120,8 @@ export default async function AnalyticsPage() {
 
   // ── Scan source: sleeve vs. table topper (internal attribution) ──
   const sourceLabel = (src: string | null) => {
-    if (!src) return "Coffee sleeve";
+    // null = legacy scans before source tracking; "sleeve" = new default.
+    if (!src || src === "sleeve") return "Coffee sleeve";
     if (src === "table-topper") return "Table topper";
     return src.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
