@@ -2,6 +2,51 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { PlacementCard, type PlacementCardData } from "./placement-card";
+
+type PlacementWithData = {
+  id: string;
+  tagline: string;
+  campaign: {
+    name: string;
+    status: string;
+    venue: { name: string };
+    _count: { scans: number };
+  };
+  _count: { clicks: number };
+  clicks: { city: string | null; deviceType: string | null; os: string | null }[];
+};
+
+/** Build the per-placement audience breakdown the client card renders. */
+function toCardData(p: PlacementWithData): PlacementCardData {
+  const tally = (vals: (string | null)[], fallback?: string) => {
+    const counts: Record<string, number> = {};
+    for (const v of vals) {
+      const key = v || fallback;
+      if (!key) continue;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => ({ label, count }));
+  };
+  const sleeveViews = p.campaign._count.scans;
+  const clicks = p._count.clicks;
+  return {
+    id: p.id,
+    venueName: p.campaign.venue.name,
+    campaignName: p.campaign.name,
+    isActive: p.campaign.status === "active",
+    tagline: p.tagline,
+    sleeveViews,
+    clicks,
+    ctr: sleeveViews > 0 ? ((clicks / sleeveViews) * 100).toFixed(1) : "0",
+    clickTotal: p.clicks.length,
+    devices: tally(p.clicks.map((c) => c.deviceType), "unknown"),
+    platform: tally(p.clicks.map((c) => c.os), "unknown"),
+    cities: tally(p.clicks.map((c) => c.city)).slice(0, 5),
+  };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -66,25 +111,6 @@ export default async function BrandDashboard() {
   const overallCtr = totalImpressions > 0
     ? ((totalClicks / totalImpressions) * 100).toFixed(1)
     : "0";
-
-  // Aggregate click analytics across all placements
-  const allClicks = brand.placements.flatMap((p) => p.clicks);
-
-  const cityCounts: Record<string, number> = {};
-  const deviceCounts: Record<string, number> = {};
-  const osCounts: Record<string, number> = {};
-
-  for (const c of allClicks) {
-    if (c.city) cityCounts[c.city] = (cityCounts[c.city] || 0) + 1;
-    const d = c.deviceType || "unknown";
-    deviceCounts[d] = (deviceCounts[d] || 0) + 1;
-    const o = c.os || "unknown";
-    osCounts[o] = (osCounts[o] || 0) + 1;
-  }
-
-  const topCities = Object.entries(cityCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
 
   // Onboarding completeness — based on editable (non-completed) placements.
   const editablePlacements = brand.placements.filter(
@@ -190,83 +216,14 @@ export default async function BrandDashboard() {
         />
       </div>
 
-      {/* Audience Insights (from clicks) */}
-      {allClicks.length > 0 && (
-        <section className="mb-10">
-          <h2 className="font-serif text-lg font-bold mb-4">Your Audience</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Device breakdown */}
-            <div className="bg-white rounded-xl shadow-sm p-4">
-              <h3 className="text-xs font-medium text-gray-400 mb-3">Devices</h3>
-              {Object.entries(deviceCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([device, count]) => (
-                  <div key={device} className="flex justify-between items-center mb-1.5">
-                    <span className="text-sm capitalize">{device}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-purple-500 rounded-full"
-                          style={{ width: `${(count / allClicks.length) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-400 w-8 text-right">
-                        {Math.round((count / allClicks.length) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-
-            {/* OS breakdown */}
-            <div className="bg-white rounded-xl shadow-sm p-4">
-              <h3 className="text-xs font-medium text-gray-400 mb-3">Platform</h3>
-              {Object.entries(osCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5)
-                .map(([os, count]) => (
-                  <div key={os} className="flex justify-between items-center mb-1.5">
-                    <span className="text-sm">{os}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 rounded-full"
-                          style={{ width: `${(count / allClicks.length) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-400 w-8 text-right">
-                        {Math.round((count / allClicks.length) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-
-            {/* Top cities */}
-            <div className="bg-white rounded-xl shadow-sm p-4">
-              <h3 className="text-xs font-medium text-gray-400 mb-3">Top Cities</h3>
-              {topCities.length > 0 ? (
-                topCities.map(([city, count]) => (
-                  <div key={city} className="flex justify-between items-center mb-1.5">
-                    <span className="text-sm">{city}</span>
-                    <span className="text-xs text-gray-400">{count} clicks</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-gray-300">No location data yet</p>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Active Placements */}
       <section className="mb-10">
         <h2 className="font-serif text-lg font-bold mb-1">Active Placements</h2>
         <p className="text-sm text-gray-400 mb-4">
           Each card is your ad on one venue&apos;s coffee sleeve. &ldquo;Sleeve
           views&rdquo; is how many scanned that sleeve; &ldquo;your clicks&rdquo;
-          is taps on your ad there.
+          is taps on your ad there. Tap a card to see who&apos;s tapping — devices,
+          platform, and cities.
         </p>
         {activePlacements.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
@@ -275,7 +232,7 @@ export default async function BrandDashboard() {
         ) : (
           <div className="space-y-3">
             {activePlacements.map((p) => (
-              <PlacementCard key={p.id} placement={p} />
+              <PlacementCard key={p.id} placement={toCardData(p)} />
             ))}
           </div>
         )}
@@ -287,7 +244,7 @@ export default async function BrandDashboard() {
           <h2 className="font-serif text-lg font-bold mb-4">Past Placements</h2>
           <div className="space-y-3">
             {pastPlacements.map((p) => (
-              <PlacementCard key={p.id} placement={p} />
+              <PlacementCard key={p.id} placement={toCardData(p)} />
             ))}
           </div>
         </section>
@@ -340,92 +297,3 @@ function StatCard({
   );
 }
 
-function PlacementCard({
-  placement,
-}: {
-  placement: {
-    id: string;
-    tagline: string;
-    ctaText: string;
-    ctaUrl: string;
-    buttonColor: string;
-    campaign: {
-      name: string;
-      status: string;
-      venue: { name: string; slug: string };
-      _count: { scans: number };
-    };
-    _count: { clicks: number };
-  };
-}) {
-  const isActive = placement.campaign.status === "active";
-  const ctr =
-    placement.campaign._count.scans > 0
-      ? ((placement._count.clicks / placement.campaign._count.scans) * 100).toFixed(1)
-      : "0";
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      {/* Header — the venue anchors the whole card */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50/60">
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className={`w-2 h-2 rounded-full shrink-0 ${
-              isActive ? "bg-green-500" : "bg-gray-300"
-            }`}
-          />
-          <span className="shrink-0 text-gray-400" aria-hidden="true">📍</span>
-          <div className="min-w-0">
-            <p className="font-semibold text-sm truncate">
-              Your ad at {placement.campaign.venue.name}
-            </p>
-            <p className="text-xs text-gray-400 truncate">
-              &ldquo;{placement.tagline}&rdquo;
-            </p>
-          </div>
-        </div>
-        <span className="shrink-0 text-[11px] text-gray-500 bg-white border border-gray-200 rounded-full px-2 py-0.5">
-          {placement.campaign.name}
-        </span>
-      </div>
-      {/* This placement's numbers */}
-      <div className="grid grid-cols-3 gap-2 p-3">
-        <MiniStat
-          label="Sleeve views"
-          value={placement.campaign._count.scans}
-          tooltip="Scans of this venue's sleeve. Shared by every business on the sleeve — not views of your ad alone."
-        />
-        <MiniStat
-          label="Your clicks"
-          value={placement._count.clicks}
-          tooltip="Taps on your ad on this sleeve."
-        />
-        <MiniStat
-          label="CTR"
-          value={`${ctr}%`}
-          tooltip="Your clicks ÷ this sleeve's views."
-        />
-      </div>
-    </div>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  tooltip,
-}: {
-  label: string;
-  value: number | string;
-  tooltip?: string;
-}) {
-  return (
-    <div className="bg-gray-50 rounded-lg p-2 text-center">
-      <p className="text-sm font-bold">{typeof value === "number" ? value.toLocaleString() : value}</p>
-      <div className="flex items-center justify-center gap-0.5">
-        <p className="text-[10px] text-gray-400">{label}</p>
-        {tooltip && <InfoTooltip label={label} text={tooltip} />}
-      </div>
-    </div>
-  );
-}
