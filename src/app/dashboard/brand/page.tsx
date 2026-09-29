@@ -172,13 +172,21 @@ export default async function BrandDashboard() {
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-        <StatCard label="Active Campaigns" value={activePlacements.length} />
-        <StatCard label="Total Impressions" value={totalImpressions} />
-        <StatCard label="Total Clicks" value={totalClicks} />
+        <StatCard label="Active ads" value={activePlacements.length} />
+        <StatCard
+          label="Sleeve views"
+          value={totalImpressions}
+          tooltip="Total scans of the sleeves your ads are on, across all venues. A sleeve is shared by up to 4 businesses, so this is shared reach — not views of your ad alone."
+        />
+        <StatCard
+          label="Your clicks"
+          value={totalClicks}
+          tooltip="Taps on your ad specifically, across all venues."
+        />
         <StatCard
           label="Overall CTR"
           value={`${overallCtr}%`}
-          tooltip="Click-through rate — the share of impressions (QR scans) that resulted in an ad tap (total clicks ÷ total impressions)."
+          tooltip="Click-through rate — your clicks ÷ sleeve views. The share of people who saw a sleeve and tapped your ad."
         />
       </div>
 
@@ -254,7 +262,12 @@ export default async function BrandDashboard() {
 
       {/* Active Placements */}
       <section className="mb-10">
-        <h2 className="font-serif text-lg font-bold mb-4">Active Placements</h2>
+        <h2 className="font-serif text-lg font-bold mb-1">Active Placements</h2>
+        <p className="text-sm text-gray-400 mb-4">
+          Each card is your ad on one venue&apos;s coffee sleeve. &ldquo;Sleeve
+          views&rdquo; is how many scanned that sleeve; &ldquo;your clicks&rdquo;
+          is taps on your ad there.
+        </p>
         {activePlacements.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
             <p className="text-gray-400">No active placements right now.</p>
@@ -352,26 +365,45 @@ function PlacementCard({
       : "0";
 
   return (
-    <div className="bg-white rounded-xl shadow-sm px-4 py-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      {/* Header — the venue anchors the whole card */}
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+        <div className="flex items-center gap-2 min-w-0">
           <span
-            className={`w-2 h-2 rounded-full ${
+            className={`w-2 h-2 rounded-full shrink-0 ${
               isActive ? "bg-green-500" : "bg-gray-300"
             }`}
           />
-          <p className="font-medium text-sm">{placement.campaign.venue.name}</p>
+          <span className="shrink-0 text-gray-400" aria-hidden="true">📍</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-sm truncate">
+              Your ad at {placement.campaign.venue.name}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              &ldquo;{placement.tagline}&rdquo;
+            </p>
+          </div>
         </div>
-        <span className="text-xs text-gray-400">{placement.campaign.name}</span>
+        <span className="shrink-0 text-[11px] text-gray-500 bg-white border border-gray-200 rounded-full px-2 py-0.5">
+          {placement.campaign.name}
+        </span>
       </div>
-      <p className="text-xs text-gray-400 mb-3">&ldquo;{placement.tagline}&rdquo;</p>
-      <div className="grid grid-cols-3 gap-2">
-        <MiniStat label="Impressions" value={placement.campaign._count.scans} />
-        <MiniStat label="Clicks" value={placement._count.clicks} />
+      {/* This placement's numbers */}
+      <div className="grid grid-cols-3 gap-2 p-3">
+        <MiniStat
+          label="Sleeve views"
+          value={placement.campaign._count.scans}
+          tooltip="Scans of this venue's sleeve. Shared by every business on the sleeve — not views of your ad alone."
+        />
+        <MiniStat
+          label="Your clicks"
+          value={placement._count.clicks}
+          tooltip="Taps on your ad on this sleeve."
+        />
         <MiniStat
           label="CTR"
           value={`${ctr}%`}
-          tooltip="Click-through rate — the share of this placement's impressions that resulted in an ad tap (clicks ÷ impressions)."
+          tooltip="Your clicks ÷ this sleeve's views."
         />
       </div>
     </div>
