@@ -56,10 +56,12 @@ export async function GET(request: NextRequest) {
     if (!placementId) return pixelResponse();
 
     const ip = request.headers.get("x-forwarded-for") || "unknown";
-    const geo = await geoFromIp(ip);
+    // Conversions only store coarse geo; the enriched fields (ZIP/ISP/flags)
+    // live on scans & clicks, not here.
+    const { city, region, country } = await geoFromIp(ip);
 
     await prisma.conversion.create({
-      data: { clickId, placementId, value, ...geo },
+      data: { clickId, placementId, value, city, region, country },
     });
   } catch (e) {
     console.error("Conversion tracking error:", e);
