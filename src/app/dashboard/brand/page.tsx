@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { PlacementCard, type PlacementCardData } from "./placement-card";
+import {
+  PlacementCard,
+  type PlacementCardData,
+  type AdvancedCardData,
+} from "./placement-card";
 import { advancedMetricsEnabled } from "@/lib/features";
 
 /** Last n calendar days as YYYY-MM-DD (oldest first), module-scoped so the
@@ -39,7 +43,10 @@ type PlacementWithData = {
 };
 
 /** Build the per-placement audience breakdown the client card renders. */
-function toCardData(p: PlacementWithData): PlacementCardData {
+function toCardData(
+  p: PlacementWithData,
+  advanced?: AdvancedCardData
+): PlacementCardData {
   const tally = (vals: (string | null)[], fallback?: string) => {
     const counts: Record<string, number> = {};
     for (const v of vals) {
@@ -66,6 +73,7 @@ function toCardData(p: PlacementWithData): PlacementCardData {
     devices: tally(p.clicks.map((c) => c.deviceType), "unknown"),
     platform: tally(p.clicks.map((c) => c.os), "unknown"),
     cities: tally(p.clicks.map((c) => c.city)).slice(0, 5),
+    advanced: advanced ?? null,
   };
 }
 
@@ -133,28 +141,17 @@ export default async function BrandDashboard() {
     ? ((totalClicks / totalImpressions) * 100).toFixed(1)
     : "0";
 
-  // ── Advanced metrics (flagged per-brand) ──
-  // Trend chart + cost framing. Off by default: showing $/click can read as
-  // "look how much you're wasting" on a slow campaign before ROI is proven.
+  // ── Advanced metrics (flagged per-brand), tied to each specific ad ──
+  // Trend + cost framing live inside each placement card, not aggregated. Off
+  // by default: showing $/click can read as "look how much you're wasting" on
+  // a slow campaign before ROI is proven.
   const showAdvanced = advancedMetricsEnabled(brandId);
-
-  let advanced: null | {
-    days: string[];
-    viewsByDay: number[];
-    clicksByDay: number[];
-    maxViews: number;
-    maxClicks: number;
-    spendCents: number;
-    costPerClickCents: number | null;
-    cpmCents: number | null;
-  } = null;
+  const trendDays = lastNDays(14);
+  const advancedByPlacement = new Map<string, AdvancedCardData>();
 
   if (showAdvanced) {
-    const days = lastNDays(14);
-    const activeCampaignIds = [
-      ...new Set(activePlacements.map((p) => p.campaignId)),
-    ];
-    const since = new Date(`${days[0]}T00:00:00.000Z`);
+    const activeCampaignIds = [...new Set(activePlacements.map((p) => p.campaignId))];
+    const since = new Date(`${trendDays[0]}T00:00:00.000Z`);
     const trendScans = activeCampaignIds.length
       ? await prisma.scan.findMany({
           where: {
@@ -162,45 +159,44 @@ export default async function BrandDashboard() {
             isBot: false,
             scannedAt: { gte: since },
           },
-          select: { scannedAt: true },
+          select: { campaignId: true, scannedAt: true },
         })
       : [];
 
-    const viewBuckets = new Map<string, number>(days.map((d) => [d, 0]));
+    // Per-campaign daily views, so each ad's trend is its own.
+    const viewsByCampaign = new Map<string, Map<string, number>>();
+    for (const id of activeCampaignIds) {
+      viewsByCampaign.set(id, new Map(trendDays.map((d) => [d, 0])));
+    }
     for (const s of trendScans) {
       const key = s.scannedAt.toISOString().slice(0, 10);
-      if (viewBuckets.has(key)) viewBuckets.set(key, viewBuckets.get(key)! + 1);
+      const b = viewsByCampaign.get(s.campaignId);
+      if (b && b.has(key)) b.set(key, b.get(key)! + 1);
     }
-    const clickBuckets = new Map<string, number>(days.map((d) => [d, 0]));
+
     for (const p of activePlacements) {
+      const spendCents = p.campaign.pricePerPlacement || 0;
+      const views = p.campaign._count.scans;
+      const clicks = p._count.clicks;
+      const clickBuckets = new Map<string, number>(trendDays.map((d) => [d, 0]));
       for (const c of p.clicks) {
         const key = c.clickedAt.toISOString().slice(0, 10);
         if (clickBuckets.has(key)) clickBuckets.set(key, clickBuckets.get(key)! + 1);
       }
+      const vb = viewsByCampaign.get(p.campaignId)!;
+      const viewsByDay = trendDays.map((d) => vb.get(d)!);
+      const clicksByDay = trendDays.map((d) => clickBuckets.get(d)!);
+      advancedByPlacement.set(p.id, {
+        spendLabel: usd(spendCents),
+        costPerClickLabel: clicks > 0 ? usd(spendCents / clicks, 2) : "—",
+        cpmLabel: views > 0 ? usd((spendCents / views) * 1000, 2) : "—",
+        viewsByDay,
+        clicksByDay,
+        maxViews: Math.max(1, ...viewsByDay),
+        maxClicks: Math.max(1, ...clicksByDay),
+        firstDayLabel: trendDays[0].slice(5),
+      });
     }
-    const viewsByDay = days.map((d) => viewBuckets.get(d)!);
-    const clicksByDay = days.map((d) => clickBuckets.get(d)!);
-
-    const spendCents = activePlacements.reduce(
-      (s, p) => s + (p.campaign.pricePerPlacement || 0),
-      0
-    );
-    const activeImpressions = activePlacements.reduce(
-      (s, p) => s + p.campaign._count.scans,
-      0
-    );
-    const activeClicks = activePlacements.reduce((s, p) => s + p._count.clicks, 0);
-
-    advanced = {
-      days,
-      viewsByDay,
-      clicksByDay,
-      maxViews: Math.max(1, ...viewsByDay),
-      maxClicks: Math.max(1, ...clicksByDay),
-      spendCents,
-      costPerClickCents: activeClicks > 0 ? spendCents / activeClicks : null,
-      cpmCents: activeImpressions > 0 ? (spendCents / activeImpressions) * 1000 : null,
-    };
   }
 
   // Onboarding completeness — based on editable (non-completed) placements.
@@ -307,43 +303,6 @@ export default async function BrandDashboard() {
         />
       </div>
 
-      {/* Performance — flagged per-brand */}
-      {advanced && (
-        <section className="mb-10">
-          <h2 className="font-serif text-lg font-bold mb-4">Performance</h2>
-
-          {/* Value framing */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            <StatCard
-              label="Total spend"
-              value={usd(advanced.spendCents)}
-              tooltip="What you've paid for your current active placements."
-            />
-            <StatCard
-              label="Cost per click"
-              value={advanced.costPerClickCents !== null ? usd(advanced.costPerClickCents, 2) : "—"}
-              tooltip="Total spend ÷ your clicks. What each tap on your ad has cost so far."
-            />
-            <StatCard
-              label="Cost / 1k views"
-              value={advanced.cpmCents !== null ? usd(advanced.cpmCents, 2) : "—"}
-              tooltip="Total spend ÷ sleeve views × 1,000 (CPM) — your cost to be seen 1,000 times. Handy vs. other ad channels."
-            />
-          </div>
-
-          {/* 14-day trend */}
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <h3 className="text-xs font-medium text-gray-400 mb-3">Last 14 days</h3>
-            <TrendRow label="Sleeve views" data={advanced.viewsByDay} max={advanced.maxViews} color="bg-purple-300" />
-            <TrendRow label="Your clicks" data={advanced.clicksByDay} max={advanced.maxClicks} color="bg-purple-600" />
-            <div className="flex justify-between text-[10px] text-gray-300 mt-1 px-0.5">
-              <span>{advanced.days[0].slice(5)}</span>
-              <span>Today</span>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Active Placements */}
       <section className="mb-10">
         <h2 className="font-serif text-lg font-bold mb-1">Active Placements</h2>
@@ -360,7 +319,10 @@ export default async function BrandDashboard() {
         ) : (
           <div className="space-y-3">
             {activePlacements.map((p) => (
-              <PlacementCard key={p.id} placement={toCardData(p)} />
+              <PlacementCard
+                key={p.id}
+                placement={toCardData(p, advancedByPlacement.get(p.id))}
+              />
             ))}
           </div>
         )}
@@ -425,40 +387,4 @@ function StatCard({
   );
 }
 
-function TrendRow({
-  label,
-  data,
-  max,
-  color,
-}: {
-  label: string;
-  data: number[];
-  max: number;
-  color: string;
-}) {
-  const total = data.reduce((a, b) => a + b, 0);
-  return (
-    <div className="mb-3">
-      <div className="flex justify-between items-baseline mb-1">
-        <span className="text-xs text-gray-500">{label}</span>
-        <span className="text-xs text-gray-400">{total.toLocaleString()} total</span>
-      </div>
-      <div className="flex items-end gap-[3px] h-10">
-        {data.map((v, i) => (
-          <div
-            key={i}
-            title={`${v}`}
-            className="flex-1 bg-gray-100 rounded-sm relative overflow-hidden"
-            style={{ height: "100%" }}
-          >
-            <div
-              className={`absolute bottom-0 left-0 right-0 ${color} rounded-sm`}
-              style={{ height: `${Math.max(v > 0 ? 8 : 0, (v / max) * 100)}%` }}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
