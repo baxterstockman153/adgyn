@@ -4,6 +4,17 @@ import { useState } from "react";
 
 export type Breakdown = { label: string; count: number }[];
 
+export type AdvancedCardData = {
+  spendLabel: string;
+  costPerClickLabel: string;
+  cpmLabel: string;
+  viewsByDay: number[];
+  clicksByDay: number[];
+  maxViews: number;
+  maxClicks: number;
+  firstDayLabel: string;
+};
+
 export type PlacementCardData = {
   id: string;
   venueName: string;
@@ -17,6 +28,7 @@ export type PlacementCardData = {
   devices: Breakdown;
   platform: Breakdown;
   cities: Breakdown;
+  advanced: AdvancedCardData | null;
 };
 
 export function PlacementCard({ placement: p }: { placement: PlacementCardData }) {
@@ -62,7 +74,7 @@ export function PlacementCard({ placement: p }: { placement: PlacementCardData }
       </button>
 
       {/* This placement's headline numbers */}
-      <div className="grid grid-cols-3 gap-2 p-3">
+      <div className="grid grid-cols-3 gap-2 p-3 pb-0">
         <MiniStat
           label="Sleeve views"
           value={p.sleeveViews}
@@ -72,9 +84,40 @@ export function PlacementCard({ placement: p }: { placement: PlacementCardData }
         <MiniStat label="CTR" value={`${p.ctr}%`} tooltip="Your clicks ÷ this sleeve's views." />
       </div>
 
-      {/* Expandable audience detail for THIS placement */}
+      {/* Cost framing for THIS ad (flagged) */}
+      {p.advanced && (
+        <div className="grid grid-cols-3 gap-2 px-3 pt-2 pb-3">
+          <MiniStat label="Spend" value={p.advanced.spendLabel} tooltip="What you paid for this placement." />
+          <MiniStat
+            label="Cost / click"
+            value={p.advanced.costPerClickLabel}
+            tooltip="This ad's spend ÷ its clicks — what each tap here has cost."
+          />
+          <MiniStat
+            label="Cost / 1k views"
+            value={p.advanced.cpmLabel}
+            tooltip="This ad's spend ÷ sleeve views × 1,000 (CPM). Handy vs. other ad channels."
+          />
+        </div>
+      )}
+      {!p.advanced && <div className="pb-3" />}
+
+      {/* Expandable audience + trend detail for THIS placement */}
       {open && (
-        <div className="border-t border-gray-100 px-4 py-4">
+        <div className="border-t border-gray-100 px-4 py-4 space-y-5">
+          {p.advanced && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-2">
+                Last 14 days at {p.venueName}
+              </p>
+              <MiniTrend label="Sleeve views" data={p.advanced.viewsByDay} max={p.advanced.maxViews} color="bg-purple-300" />
+              <MiniTrend label="Your clicks" data={p.advanced.clicksByDay} max={p.advanced.maxClicks} color="bg-purple-600" />
+              <div className="flex justify-between text-[10px] text-gray-300 mt-1 px-0.5">
+                <span>{p.advanced.firstDayLabel}</span>
+                <span>Today</span>
+              </div>
+            </div>
+          )}
           <p className="text-xs font-medium text-gray-400 mb-3">
             Who tapped your ad here
           </p>
@@ -145,6 +188,38 @@ function BreakdownList({
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+function MiniTrend({
+  label,
+  data,
+  max,
+  color,
+}: {
+  label: string;
+  data: number[];
+  max: number;
+  color: string;
+}) {
+  const total = data.reduce((a, b) => a + b, 0);
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between items-baseline mb-1">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs text-gray-400">{total.toLocaleString()} total</span>
+      </div>
+      <div className="flex items-end gap-[3px] h-10">
+        {data.map((v, i) => (
+          <div key={i} className="flex-1 bg-gray-100 rounded-sm relative overflow-hidden h-full">
+            <div
+              className={`absolute bottom-0 left-0 right-0 ${color} rounded-sm`}
+              style={{ height: `${Math.max(v > 0 ? 8 : 0, (v / max) * 100)}%` }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
