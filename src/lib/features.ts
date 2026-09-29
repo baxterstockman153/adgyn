@@ -8,7 +8,8 @@
  * deploy.
  */
 const DEMO_ADVANCED_METRICS_BRANDS = new Set<string>([
-  "117c1197-c951-45f3-ada4-d78690465a39", // Jimmy's Shoe Shining (demo)
+  // Off everywhere for now — cost framing didn't look right. Re-enable a brand
+  // by adding its ID here or via the ADVANCED_METRICS_BRAND_IDS env var.
 ]);
 
 export function advancedMetricsEnabled(brandId: string): boolean {
