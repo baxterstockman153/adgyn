@@ -154,6 +154,10 @@ model Scan {
   city        String?
   region      String?
   country     String?
+  postalCode  String?  @map("postal_code")
+  isp         String?
+  isMobile    Boolean? @map("is_mobile")
+  isProxy     Boolean? @map("is_proxy")
   deviceType  String?  @map("device_type")
   os          String?
   browser     String?
@@ -181,6 +185,10 @@ model Click {
   city        String?
   region      String?
   country     String?
+  postalCode  String?  @map("postal_code")
+  isp         String?
+  isMobile    Boolean? @map("is_mobile")
+  isProxy     Boolean? @map("is_proxy")
   deviceType  String?  @map("device_type")
   os          String?
   browser     String?

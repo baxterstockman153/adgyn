@@ -62,31 +62,62 @@ export function detectBot(ua: string | null): { isBot: boolean; botReason: strin
   return { isBot: false, botReason: null };
 }
 
-/** Geo-locate IP using free ip-api.com (45 req/min, no key needed) */
-export async function geoFromIp(ip: string): Promise<{
+export type GeoResult = {
   city: string | null;
   region: string | null;
   country: string | null;
-}> {
+  postalCode: string | null;
+  isp: string | null;
+  isMobile: boolean | null;
+  isProxy: boolean | null;
+};
+
+const EMPTY_GEO: GeoResult = {
+  city: null,
+  region: null,
+  country: null,
+  postalCode: null,
+  isp: null,
+  isMobile: null,
+  isProxy: null,
+};
+
+/**
+ * Geo-locate IP using free ip-api.com (45 req/min, no key needed). Beyond
+ * city/region/country we also pull ZIP, ISP/carrier, and mobile / proxy(VPN)
+ * flags. These extra signals are for internal (admin) analytics and fraud
+ * detection only — guest/host dashboards surface city alone.
+ */
+export async function geoFromIp(ip: string): Promise<GeoResult> {
   if (!ip || ip === "unknown" || ip === "::1" || ip === "127.0.0.1") {
-    return { city: null, region: null, country: null };
+    return { ...EMPTY_GEO };
   }
 
   try {
     const cleanIp = ip.split(",")[0].trim(); // x-forwarded-for can have multiple
     const res = await fetch(
-      `http://ip-api.com/json/${cleanIp}?fields=city,regionName,country`,
+      `http://ip-api.com/json/${cleanIp}?fields=city,regionName,country,zip,isp,mobile,proxy,hosting`,
       { signal: AbortSignal.timeout(2000) }
     );
-    if (!res.ok) return { city: null, region: null, country: null };
+    if (!res.ok) return { ...EMPTY_GEO };
     const data = await res.json();
     return {
       city: data.city || null,
       region: data.regionName || null,
       country: data.country || null,
+      postalCode: data.zip || null,
+      isp: data.isp || null,
+      // ip-api returns booleans; treat missing as null (unknown)
+      isMobile: typeof data.mobile === "boolean" ? data.mobile : null,
+      // proxy = VPN/proxy/Tor; hosting = datacenter IP. Either flags "not a
+      // normal residential/cellular connection".
+      isProxy:
+        typeof data.proxy === "boolean" || typeof data.hosting === "boolean"
+          ? Boolean(data.proxy) || Boolean(data.hosting)
+          : null,
     };
   } catch {
-    return { city: null, region: null, country: null };
+    return { ...EMPTY_GEO };
   }
 }
 

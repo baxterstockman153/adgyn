@@ -22,6 +22,11 @@ export default async function AnalyticsPage() {
           scannedAt: true,
           campaignId: true,
           source: true,
+          city: true,
+          postalCode: true,
+          isp: true,
+          isMobile: true,
+          isProxy: true,
         },
       }),
       prisma.click.findMany({
@@ -132,6 +137,37 @@ export default async function AnalyticsPage() {
   }
   const sourceRows = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
   const sourceTotal = humanScans.length;
+
+  // ── Enriched location (admin-only): ZIP, ISP/carrier, connection type ──
+  const zipCounts: Record<string, number> = {};
+  const ispCounts: Record<string, number> = {};
+  let mobileCount = 0;
+  let wifiCount = 0;
+  let connKnown = 0;
+  let proxyCount = 0;
+  let proxyKnown = 0;
+  for (const s of humanScans) {
+    if (s.postalCode) {
+      const key = `${s.postalCode}${s.city ? ` · ${s.city}` : ""}`;
+      zipCounts[key] = (zipCounts[key] || 0) + 1;
+    }
+    if (s.isp) ispCounts[s.isp] = (ispCounts[s.isp] || 0) + 1;
+    if (typeof s.isMobile === "boolean") {
+      connKnown++;
+      if (s.isMobile) mobileCount++;
+      else wifiCount++;
+    }
+    if (typeof s.isProxy === "boolean") {
+      proxyKnown++;
+      if (s.isProxy) proxyCount++;
+    }
+  }
+  const topZips = Object.entries(zipCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const topIsps = Object.entries(ispCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxZip = Math.max(1, ...topZips.map(([, n]) => n));
+  const maxIsp = Math.max(1, ...topIsps.map(([, n]) => n));
+  const mobilePct = connKnown ? Math.round((mobileCount / connKnown) * 100) : 0;
+  const proxyPct = proxyKnown ? Math.round((proxyCount / proxyKnown) * 100) : 0;
 
   // ── Audience mix: language ──
   const langCounts: Record<string, number> = {};
@@ -252,6 +288,41 @@ export default async function AnalyticsPage() {
           </>
         )}
       </Card>
+
+      {/* Enriched location — admin only */}
+      <SectionTitle>Location &amp; Network (internal)</SectionTitle>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <Metric label="Mobile / cellular" value={`${mobilePct}%`} sub={`${wifiCount.toLocaleString()} on wifi`} />
+        <Metric label="VPN / proxy / datacenter" value={`${proxyPct}%`} sub="of known scans" />
+        <Metric label="Distinct ZIPs" value={Object.keys(zipCounts).length.toLocaleString()} />
+        <Metric label="Distinct ISPs" value={Object.keys(ispCounts).length.toLocaleString()} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <Card>
+          <CardHead>Top ZIP codes</CardHead>
+          {topZips.length === 0 ? (
+            <p className="text-sm text-gray-400">No ZIP data yet.</p>
+          ) : (
+            topZips.map(([zip, n]) => (
+              <Row key={zip} label={zip} value={n} max={maxZip} />
+            ))
+          )}
+        </Card>
+        <Card>
+          <CardHead>Top ISPs / carriers</CardHead>
+          {topIsps.length === 0 ? (
+            <p className="text-sm text-gray-400">No ISP data yet.</p>
+          ) : (
+            topIsps.map(([isp, n]) => (
+              <Row key={isp} label={isp} value={n} max={maxIsp} />
+            ))
+          )}
+        </Card>
+      </div>
+      <p className="text-[11px] text-gray-400 -mt-6 mb-8">
+        IP-derived, city/ZIP-level — never precise GPS. Internal only; guests and
+        hosts see city alone. VPN/proxy/datacenter share is a fraud signal.
+      </p>
 
       {/* Position bias + dwell */}
       <SectionTitle>Engagement Quality</SectionTitle>
