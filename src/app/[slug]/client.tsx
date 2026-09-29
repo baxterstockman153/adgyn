@@ -121,7 +121,10 @@ export function SleevePageClient({
               {venue.name}
             </h1>
           )}
-          <p style={{ fontSize: "11px" }} className="text-gray-400 mt-0.5">
+          <p
+            style={{ fontSize: "11px", letterSpacing: "0.14em" }}
+            className="text-gray-600 font-semibold uppercase mt-1"
+          >
             Discover Local Spots
           </p>
         </header>
