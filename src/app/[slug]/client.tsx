@@ -116,9 +116,11 @@ export function SleevePageClient({
               />
             )
           ) : null}
-          <h1 style={{ fontSize: "13px" }} className="font-serif font-bold tracking-wider uppercase mt-1">
-            {venue.name}
-          </h1>
+          {!venue.logoUrl && (
+            <h1 style={{ fontSize: "13px" }} className="font-serif font-bold tracking-wider uppercase mt-1">
+              {venue.name}
+            </h1>
+          )}
           <p style={{ fontSize: "11px" }} className="text-gray-400 mt-0.5">
             Discover Local Spots
           </p>
