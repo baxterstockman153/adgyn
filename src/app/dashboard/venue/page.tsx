@@ -6,16 +6,33 @@ import { CampaignDashboard } from "./campaign-dashboard";
 
 export const dynamic = "force-dynamic";
 
+// Preset date ranges for the "Views" filter. `all` = no time limit.
+const RANGE_DAYS: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90 };
+const RANGE_OPTIONS = [
+  { value: "7d", label: "7 days" },
+  { value: "30d", label: "30 days" },
+  { value: "90d", label: "90 days" },
+  { value: "all", label: "All time" },
+];
+
 export default async function VenueDashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ campaign?: string }>;
+  searchParams: Promise<{ campaign?: string; range?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { campaign: selectedCampaignId } = await searchParams;
+  const { campaign: selectedCampaignId, range: selectedRange } = await searchParams;
+
+  // Resolve the selected date range into a `since` cutoff shared by scans + clicks.
+  const range =
+    selectedRange && selectedRange in RANGE_DAYS ? selectedRange : "all";
+  const since =
+    range === "all" ? null : new Date(Date.now() - RANGE_DAYS[range] * 86_400_000);
+  const scanWhere = since ? { scannedAt: { gte: since } } : undefined;
+  const clickWhere = since ? { clickedAt: { gte: since } } : undefined;
 
   const dbUser = await prisma.user.findUnique({
     where: { email: user.email! },
@@ -36,11 +53,13 @@ export default async function VenueDashboard({
           placements: {
             include: {
               brand: true,
-              _count: { select: { clicks: true } },
+              // Clicks within the selected range (all-time when no range set)
+              _count: { select: { clicks: clickWhere ? { where: clickWhere } : true } },
             },
             orderBy: { slot: "asc" },
           },
           scans: {
+            where: scanWhere,
             select: {
               id: true,
               visitorId: true,
@@ -172,7 +191,7 @@ export default async function VenueDashboard({
             return (
               <Link
                 key={c.id}
-                href={`/dashboard/venue?campaign=${c.id}`}
+                href={`/dashboard/venue?campaign=${c.id}${range !== "all" ? `&range=${range}` : ""}`}
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                   isSelected
                     ? "bg-gray-900 text-white"
@@ -184,6 +203,32 @@ export default async function VenueDashboard({
                   c.status === "draft" ? "bg-yellow-400" : "bg-gray-400"
                 }`} />
                 {c.name}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Date-range filter for views (scans) */}
+      {currentCampaign && (
+        <div className="flex items-center gap-2 mb-5 flex-wrap">
+          <span className="text-xs text-gray-400 mr-1">Views:</span>
+          {RANGE_OPTIONS.map((opt) => {
+            const isSelected = range === opt.value;
+            const href = `/dashboard/venue?campaign=${currentCampaign.id}${
+              opt.value !== "all" ? `&range=${opt.value}` : ""
+            }`;
+            return (
+              <Link
+                key={opt.value}
+                href={href}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  isSelected
+                    ? "bg-gray-900 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                }`}
+              >
+                {opt.label}
               </Link>
             );
           })}
