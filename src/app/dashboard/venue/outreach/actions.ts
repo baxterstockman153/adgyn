@@ -103,15 +103,20 @@ Thanks,
 ${venueName}`;
 }
 
+export type SentMessage = { id: string; body: string; sentAt: string };
 export type SendResult =
-  | { ok: true; remaining: number; movedToContacted: boolean }
+  | { ok: true; remaining: number; movedToContacted: boolean; message: SentMessage }
   | { ok: false; error: string };
 
 // Send an outreach email on the host's behalf: From their @adgyn.com sender,
-// Reply-To their real inbox. Capped at OUTREACH_DAILY_SEND_LIMIT per venue per
-// UTC day. A row is written only on a successful send, so failures don't burn
-// the daily quota.
-export async function sendProspectEmail(prospectId: string): Promise<SendResult> {
+// Reply-To their real inbox. `customBody` lets the host send a free-text
+// follow-up/reply; otherwise the suggested pitch is used. Capped at
+// OUTREACH_DAILY_SEND_LIMIT per venue per UTC day. A row is written only on a
+// successful send, so failures don't burn the daily quota.
+export async function sendProspectEmail(
+  prospectId: string,
+  customBody?: string
+): Promise<SendResult> {
   const auth = await requireOutreachVenue();
   if (!auth.ok) return auth;
   if (!outreachSendEnabled(auth.venueId)) {
@@ -164,9 +169,16 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
   // by the inbound webhook and shown in-app. An explicit outreach_reply_to
   // overrides (e.g. to also/instead reach a host's personal inbox).
   const replyTo = venue.outreachReplyTo?.trim() || outreachReplyAddress(venue);
-  const subject = `Would ${prospect.businessName} like to be on our coffee sleeves?`;
+
+  // Thread follow-ups under the same subject (prefix "Re:" after the first send).
+  const priorSends = await prisma.outreachEmail.count({ where: { prospectId: prospect.id } });
+  const baseSubject = `Would ${prospect.businessName} like to be on our coffee sleeves?`;
+  const subject = priorSends > 0 ? `Re: ${baseSubject}` : baseSubject;
   const body =
-    prospect.outreachMessage?.trim() || defaultMessage(venue.name, prospect);
+    customBody?.trim() ||
+    prospect.outreachMessage?.trim() ||
+    defaultMessage(venue.name, prospect);
+  if (!body) return { ok: false, error: "Message can't be empty." };
 
   const res = await sendOutreachEmail({
     to: prospect.email,
@@ -186,7 +198,7 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
 
   // Log the send (powers the daily cap + audit) and nudge a brand-new prospect
   // to "contacted" so the pipeline reflects reality.
-  await prisma.outreachEmail.create({
+  const created = await prisma.outreachEmail.create({
     data: {
       venueId: auth.venueId,
       prospectId: prospect.id,
@@ -196,6 +208,7 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
       subject,
       body,
     },
+    select: { id: true, body: true, sentAt: true },
   });
 
   let movedToContacted = false;
@@ -212,6 +225,7 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
     ok: true,
     remaining: OUTREACH_DAILY_SEND_LIMIT - sentToday - 1,
     movedToContacted,
+    message: { id: created.id, body: created.body, sentAt: created.sentAt.toISOString() },
   };
 }
 

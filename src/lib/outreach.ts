@@ -6,6 +6,19 @@
  */
 export const OUTREACH_EMAIL_DOMAIN = "adgyn.com";
 
+// Strip the quoted original ("On <date> … wrote:" + leading ">" lines) from an
+// inbound reply so only what the person actually wrote back is shown.
+export function stripQuotedReply(raw: string | null | undefined): string {
+  if (!raw) return "";
+  let t = raw.replace(/\n?On\s[\s\S]*?wrote:[\s\S]*$/, "");
+  t = t.replace(/\n?-{2,}\s*Original Message\s*-{2,}[\s\S]*$/i, "");
+  t = t
+    .split(/\r?\n/)
+    .filter((l) => !/^\s*>/.test(l))
+    .join("\n");
+  return t.trim();
+}
+
 // Replies are received on a dedicated subdomain: Resend inbound requires the MX
 // record on `inbound.<domain>`, so mail is captured at <local>@inbound.adgyn.com
 // while sending stays on the verified apex (best deliverability). We set that

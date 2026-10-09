@@ -32,6 +32,7 @@ export default async function OutreachPage() {
         orderBy: [{ statusUpdatedAt: "desc" }, { createdAt: "desc" }],
         include: {
           replies: { orderBy: { receivedAt: "asc" } },
+          emails: { orderBy: { sentAt: "asc" }, select: { id: true, body: true, sentAt: true } },
         },
       },
     },
@@ -60,6 +61,11 @@ export default async function OutreachPage() {
       subject: r.subject,
       text: r.text,
       receivedAt: r.receivedAt.toISOString(),
+    })),
+    emails: p.emails.map((e) => ({
+      id: e.id,
+      body: e.body,
+      sentAt: e.sentAt.toISOString(),
     })),
   }));
 
