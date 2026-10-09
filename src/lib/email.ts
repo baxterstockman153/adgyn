@@ -7,6 +7,13 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
+// Reading a *received* email (resend.emails.receiving.get) needs a full-access
+// key — the send-only RESEND_API_KEY is rejected. Use a dedicated read key when
+// provided, falling back to the main key for local/dev convenience.
+const resendInbound = process.env.RESEND_INBOUND_API_KEY
+  ? new Resend(process.env.RESEND_INBOUND_API_KEY)
+  : resend;
+
 // Verified sending identity. Once adgyn.com is verified in Resend, the default
 // works. Before then, set RESEND_FROM to "onboarding@resend.dev" to test.
 const FROM = process.env.RESEND_FROM || "Adgyn <invites@adgyn.com>";
@@ -81,9 +88,9 @@ export async function getReceivedEmail(emailId: string): Promise<{
   html: string | null;
   subject: string | null;
 } | null> {
-  if (!resend) return null;
+  if (!resendInbound) return null;
   try {
-    const { data, error } = await resend.emails.receiving.get(emailId);
+    const { data, error } = await resendInbound.emails.receiving.get(emailId);
     if (error || !data) return null;
     return {
       text: data.text ?? null,
