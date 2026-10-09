@@ -2,9 +2,28 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { outreachEnabled } from "@/lib/features";
+import { outreachEnabled, outreachSendEnabled } from "@/lib/features";
 import { redirect } from "next/navigation";
 import { OutreachBoard } from "./outreach-board";
+
+// Mirror of the From-address derivation in actions.ts (venueSender), for
+// display only — shows the host which adgyn.com address their emails send from.
+function senderAddress(venue: {
+  slug: string;
+  outreachFromEmail: string | null;
+}): string {
+  const configured = venue.outreachFromEmail?.trim().toLowerCase();
+  const rawLocal =
+    configured && configured.endsWith("@adgyn.com")
+      ? configured.slice(0, configured.indexOf("@"))
+      : venue.slug;
+  const local =
+    rawLocal
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "")
+      .replace(/^[._-]+|[._-]+$/g, "") || "host";
+  return `${local}@adgyn.com`;
+}
 
 export default async function OutreachPage() {
   const supabase = await createClient();
@@ -34,6 +53,9 @@ export default async function OutreachPage() {
   });
   if (!venue) redirect("/dashboard");
 
+  const sendEnabled = outreachSendEnabled(venueId);
+  const senderEmail = senderAddress(venue);
+
   const prospects = venue.prospects.map((p) => ({
     id: p.id,
     businessName: p.businessName,
@@ -49,5 +71,12 @@ export default async function OutreachPage() {
     status: p.status,
   }));
 
-  return <OutreachBoard venueName={venue.name} prospects={prospects} />;
+  return (
+    <OutreachBoard
+      venueName={venue.name}
+      prospects={prospects}
+      sendEnabled={sendEnabled}
+      senderEmail={senderEmail}
+    />
+  );
 }

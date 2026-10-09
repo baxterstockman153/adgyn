@@ -72,3 +72,37 @@ This invite expires in 7 days.`;
     return { sent: false, error: e instanceof Error ? e.message : "send failed" };
   }
 }
+
+// Plain-text outreach email sent on a host's behalf. `from` must be an
+// @adgyn.com address (our verified domain) — the caller is responsible for
+// enforcing that. `replyTo` routes responses back to the host's real inbox.
+export async function sendOutreachEmail({
+  to,
+  from,
+  replyTo,
+  subject,
+  text,
+}: {
+  to: string;
+  from: string;
+  replyTo?: string;
+  subject: string;
+  text: string;
+}): Promise<SendResult> {
+  if (!resend) {
+    return { sent: false, error: "RESEND_API_KEY not configured" };
+  }
+  try {
+    const { error } = await resend.emails.send({
+      from,
+      to,
+      subject,
+      text,
+      ...(replyTo ? { replyTo } : {}),
+    });
+    if (error) return { sent: false, error: error.message };
+    return { sent: true };
+  } catch (e) {
+    return { sent: false, error: e instanceof Error ? e.message : "send failed" };
+  }
+}

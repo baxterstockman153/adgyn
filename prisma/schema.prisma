@@ -54,9 +54,16 @@ model Venue {
   address            String?
   fallbackMessage    String     @default("Check back soon!") @map("fallback_message")
   lastOutreachOpenAt DateTime?  @map("last_outreach_open_at")
+  // Per-host outreach sender. `outreachFromEmail` must be an @adgyn.com address
+  // (our verified Resend domain) — e.g. "gratitude_cafe@adgyn.com". Falls back
+  // to one derived from the slug when null. `outreachReplyTo` is the host's real
+  // inbox so replies land with them (we only *send* from adgyn.com).
+  outreachFromEmail  String?    @map("outreach_from_email")
+  outreachReplyTo    String?    @map("outreach_reply_to")
   createdAt          DateTime   @default(now()) @map("created_at")
   campaigns          Campaign[]
   prospects          Prospect[]
+  outreachEmails     OutreachEmail[]
 
   @@map("venues")
 }
@@ -153,7 +160,8 @@ model Prospect {
   statusUpdatedAt DateTime       @default(now()) @map("status_updated_at")
   createdAt       DateTime       @default(now()) @map("created_at")
 
-  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue  Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  emails OutreachEmail[]
 
   @@index([venueId])
   @@map("prospects")
@@ -165,6 +173,29 @@ enum ProspectStatus {
   interested
   won
   lost
+}
+
+// One row per email actually sent from the outreach module. Doubles as the
+// audit log and the source for the per-host daily send cap (count rows for a
+// venue since UTC midnight). A row exists only on a successful send, so a
+// failed send never burns quota.
+model OutreachEmail {
+  id         String   @id @default(uuid())
+  venueId    String   @map("venue_id")
+  prospectId String   @map("prospect_id")
+  toEmail    String   @map("to_email")
+  fromEmail  String   @map("from_email")
+  replyTo    String?  @map("reply_to")
+  subject    String
+  body       String
+  sentAt     DateTime @default(now()) @map("sent_at")
+
+  venue    Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  prospect Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, sentAt])
+  @@index([prospectId])
+  @@map("outreach_emails")
 }
 
 // ── Invites ──
