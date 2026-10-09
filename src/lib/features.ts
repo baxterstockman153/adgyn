@@ -20,3 +20,22 @@ export function advancedMetricsEnabled(brandId: string): boolean {
     .filter(Boolean);
   return extra.includes(brandId);
 }
+
+/**
+ * The outreach module (host prospecting) is a pilot. It's gated per-venue so we
+ * can switch it on for one host at a time and watch whether they actually work
+ * the leads — NOT on for everyone. Enable a venue by adding its ID here, or via
+ * the OUTREACH_VENUE_IDS env var (comma-separated) to flip it without a deploy.
+ */
+const OUTREACH_VENUES = new Set<string>([
+  "2de087bf-f2af-4afe-aa7c-2ec18fb15d0d", // Gratitude Coffee Bar (pilot)
+]);
+
+export function outreachEnabled(venueId: string): boolean {
+  if (OUTREACH_VENUES.has(venueId)) return true;
+  const extra = (process.env.OUTREACH_VENUE_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return extra.includes(venueId);
+}

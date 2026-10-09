@@ -112,6 +112,48 @@ export async function createBrand(formData: FormData) {
   revalidatePath("/admin");
 }
 
+// ── Prospect Actions (outreach module) ──
+
+export async function createProspect(formData: FormData) {
+  await requireAdmin();
+  const venueId = formData.get("venueId") as string;
+  const businessName = (formData.get("businessName") as string)?.trim();
+  if (!venueId || !businessName) {
+    throw new Error("Venue and business name are required");
+  }
+
+  const str = (k: string) => {
+    const v = (formData.get(k) as string)?.trim();
+    return v ? v : null;
+  };
+
+  await prisma.prospect.create({
+    data: {
+      venueId,
+      businessName,
+      address: str("address"),
+      city: str("city"),
+      phone: str("phone"),
+      website: str("website"),
+      contactName: str("contactName"),
+      contactTitle: str("contactTitle"),
+      email: str("email"),
+      outreachMessage: str("outreachMessage"),
+    },
+  });
+  revalidatePath("/admin/prospects");
+  revalidatePath("/dashboard/venue/outreach");
+}
+
+export async function deleteProspect(formData: FormData) {
+  await requireAdmin();
+  const id = formData.get("id") as string;
+  if (!id) throw new Error("Prospect id required");
+  await prisma.prospect.delete({ where: { id } });
+  revalidatePath("/admin/prospects");
+  revalidatePath("/dashboard/venue/outreach");
+}
+
 // ── User Actions ──
 
 export async function createUser(formData: FormData) {
