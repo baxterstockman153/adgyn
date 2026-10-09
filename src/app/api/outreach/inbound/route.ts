@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { outreachSenderAddress } from "@/lib/outreach";
+import { outreachReplyAddress } from "@/lib/outreach";
+import { getReceivedEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -126,10 +127,10 @@ export async function POST(req: NextRequest) {
   });
   const toSet = new Set(toList);
   const venue = venues.find((v) =>
-    toSet.has(outreachSenderAddress(v).toLowerCase())
+    toSet.has(outreachReplyAddress(v).toLowerCase())
   );
   if (!venue) {
-    // Not addressed to any venue's outreach inbox — nothing to attach it to.
+    // Not addressed to any venue's reply inbox — nothing to attach it to.
     return NextResponse.json({ ok: true, ignored: "no venue match" });
   }
 
@@ -142,16 +143,21 @@ export async function POST(req: NextRequest) {
     select: { id: true },
   });
 
+  // The webhook is metadata-only — fetch the actual body by email id.
+  const full = providerId ? await getReceivedEmail(providerId) : null;
+  const subject =
+    (typeof data.subject === "string" && data.subject) || full?.subject || null;
+
   await prisma.outreachReply.create({
     data: {
       venueId: venue.id,
       prospectId: prospect?.id ?? null,
       providerId,
       fromEmail,
-      toEmail: outreachSenderAddress(venue),
-      subject: typeof data.subject === "string" ? data.subject : null,
-      text: typeof data.text === "string" ? data.text : null,
-      html: typeof data.html === "string" ? data.html : null,
+      toEmail: outreachReplyAddress(venue),
+      subject,
+      text: full?.text ?? null,
+      html: full?.html ?? null,
     },
   });
 
