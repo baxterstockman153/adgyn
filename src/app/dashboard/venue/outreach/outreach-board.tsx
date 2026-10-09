@@ -5,6 +5,7 @@ import {
   updateProspectStatus,
   saveProspectNote,
   markOutreachOpened,
+  sendProspectEmail,
 } from "./actions";
 
 type Status = "new" | "contacted" | "interested" | "won" | "lost";
@@ -50,9 +51,13 @@ ${venueName}`;
 export function OutreachBoard({
   venueName,
   prospects: initial,
+  sendEnabled,
+  senderEmail,
 }: {
   venueName: string;
   prospects: Prospect[];
+  sendEnabled: boolean;
+  senderEmail: string;
 }) {
   const [prospects, setProspects] = useState(initial);
 
@@ -104,6 +109,8 @@ export function OutreachBoard({
               key={p.id}
               venueName={venueName}
               prospect={p}
+              sendEnabled={sendEnabled}
+              senderEmail={senderEmail}
               onChange={(next) =>
                 setProspects((list) =>
                   list.map((x) => (x.id === next.id ? next : x))
@@ -120,10 +127,14 @@ export function OutreachBoard({
 function ProspectCard({
   venueName,
   prospect,
+  sendEnabled,
+  senderEmail,
   onChange,
 }: {
   venueName: string;
   prospect: Prospect;
+  sendEnabled: boolean;
+  senderEmail: string;
   onChange: (p: Prospect) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -131,6 +142,8 @@ function ProspectCard({
   const [copied, setCopied] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingSend, setConfirmingSend] = useState(false);
+  const [sent, setSent] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const stage = STAGES.find((s) => s.value === prospect.status)!;
@@ -170,6 +183,23 @@ function ProspectCard({
         setNoteSaved(true);
         setTimeout(() => setNoteSaved(false), 1800);
       } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  function sendEmail() {
+    setError(null);
+    startTransition(async () => {
+      const res = await sendProspectEmail(prospect.id);
+      if (res.ok) {
+        setConfirmingSend(false);
+        setSent(true);
+        if (res.movedToContacted) {
+          onChange({ ...prospect, status: "contacted" });
+        }
+      } else {
+        setConfirmingSend(false);
         setError(res.error);
       }
     });
@@ -250,16 +280,59 @@ function ProspectCard({
               <span className="text-xs text-gray-400 uppercase tracking-wider">
                 Suggested message
               </span>
-              <button
-                onClick={copyMessage}
-                className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
-              >
-                {copied ? "Copied!" : "Copy"}
-              </button>
+              <div className="flex items-center gap-2">
+                {sendEnabled && prospect.email && (
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setConfirmingSend((c) => !c);
+                    }}
+                    disabled={pending || sent}
+                    className="text-xs px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50"
+                  >
+                    {sent ? "Sent ✓" : "Send email"}
+                  </button>
+                )}
+                <button
+                  onClick={copyMessage}
+                  className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
             </div>
             <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100">
               {message}
             </pre>
+
+            {confirmingSend && prospect.email && (
+              <div className="mt-2 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm">
+                <p className="text-gray-700">
+                  Send this message to{" "}
+                  <span className="font-medium">{prospect.email}</span>?
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  From <span className="font-medium">{senderEmail}</span> · replies
+                  come back to your inbox. Limit 100 emails/day.
+                </p>
+                <div className="flex items-center gap-2 mt-2.5">
+                  <button
+                    onClick={sendEmail}
+                    disabled={pending}
+                    className="text-xs px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50"
+                  >
+                    {pending ? "Sending…" : "Send now"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingSend(false)}
+                    disabled={pending}
+                    className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-white transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Status controls */}

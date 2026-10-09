@@ -40,3 +40,28 @@ export function outreachEnabled(venueId: string): boolean {
     .filter(Boolean);
   return extra.includes(venueId);
 }
+
+/**
+ * In-app email *sending* for outreach. Deliberately a SEPARATE gate from
+ * `outreachEnabled` — a venue can see + work its prospect list (copy-to-
+ * clipboard) without being able to fire real emails from the app. Off for
+ * everyone by default; flip a venue on by adding its ID here or via the
+ * OUTREACH_SEND_VENUE_IDS env var (comma-separated). Sends are additionally
+ * capped per host per day (see the outreach send action).
+ */
+const OUTREACH_SEND_VENUES = new Set<string>([
+  // Off everywhere until we decide to let a host send for real.
+]);
+
+export function outreachSendEnabled(venueId: string): boolean {
+  if (OUTREACH_SEND_VENUES.has(venueId)) return true;
+  const extra = (process.env.OUTREACH_SEND_VENUE_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return extra.includes(venueId);
+}
+
+// Max emails a single host may send from the outreach module per day (UTC).
+// Mirrors the Resend free-tier daily ceiling and acts as an anti-abuse guard.
+export const OUTREACH_DAILY_SEND_LIMIT = 100;
