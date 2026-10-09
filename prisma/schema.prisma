@@ -56,8 +56,11 @@ model Venue {
   lastOutreachOpenAt DateTime?  @map("last_outreach_open_at")
   // Per-host outreach sender. `outreachFromEmail` must be an @adgyn.com address
   // (our verified Resend domain) — e.g. "gratitude_cafe@adgyn.com". Falls back
-  // to one derived from the slug when null. `outreachReplyTo` is the host's real
-  // inbox so replies land with them (we only *send* from adgyn.com).
+  // to one derived from the slug when null. `outreachFromName` is the From
+  // display name (defaults to the venue name) — set it to a person to make
+  // outreach read as human rather than the storefront. `outreachReplyTo` is the
+  // host's real inbox so replies land with them (we only *send* from adgyn.com).
+  outreachFromName   String?    @map("outreach_from_name")
   outreachFromEmail  String?    @map("outreach_from_email")
   outreachReplyTo    String?    @map("outreach_reply_to")
   createdAt          DateTime   @default(now()) @map("created_at")

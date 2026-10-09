@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { sendInviteEmail } from "@/lib/email";
+import { OUTREACH_EMAIL_DOMAIN } from "@/lib/outreach";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
@@ -150,6 +151,28 @@ export async function deleteProspect(formData: FormData) {
   const id = formData.get("id") as string;
   if (!id) throw new Error("Prospect id required");
   await prisma.prospect.delete({ where: { id } });
+  revalidatePath("/admin/prospects");
+  revalidatePath("/dashboard/venue/outreach");
+}
+
+// Per-venue outreach From identity: display name + @adgyn.com local-part. The
+// address domain is always forced to adgyn.com (our verified send domain).
+export async function updateVenueOutreachSender(formData: FormData) {
+  await requireAdmin();
+  const venueId = formData.get("venueId") as string;
+  if (!venueId) throw new Error("Venue id required");
+
+  const fromName = (formData.get("fromName") as string)?.trim() || null;
+  const rawLocal = (formData.get("fromLocal") as string)?.trim().toLowerCase();
+  const local = rawLocal
+    ? rawLocal.replace(/@.*$/, "").replace(/[^a-z0-9._-]/g, "").replace(/^[._-]+|[._-]+$/g, "")
+    : "";
+  const fromEmail = local ? `${local}@${OUTREACH_EMAIL_DOMAIN}` : null;
+
+  await prisma.venue.update({
+    where: { id: venueId },
+    data: { outreachFromName: fromName, outreachFromEmail: fromEmail },
+  });
   revalidatePath("/admin/prospects");
   revalidatePath("/dashboard/venue/outreach");
 }

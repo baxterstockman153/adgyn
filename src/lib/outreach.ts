@@ -42,12 +42,13 @@ export function outreachReplyAddress(venue: SenderVenue): string {
   return `${outreachLocalPart(venue)}@${OUTREACH_REPLY_DOMAIN}`;
 }
 
-// The full From header, e.g. `Gratitude Coffee Bar <gratitude_cafe@adgyn.com>`.
-// Domain is always forced to adgyn.com so a host can never send as a domain we
-// haven't authenticated.
+// The full From header, e.g. `Amber <amber@adgyn.com>`. Display name comes from
+// outreachFromName when set, otherwise the venue name. Domain is always forced
+// to adgyn.com so a host can never send as a domain we haven't authenticated.
 export function outreachSenderFrom(
-  venue: SenderVenue & { name: string }
+  venue: SenderVenue & { name: string; outreachFromName?: string | null }
 ): string {
-  const displayName = venue.name.replace(/["<>\r\n]/g, "").trim();
+  const raw = venue.outreachFromName?.trim() || venue.name;
+  const displayName = raw.replace(/["<>\r\n]/g, "").trim();
   return `${displayName} <${outreachSenderAddress(venue)}>`;
 }
