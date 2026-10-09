@@ -6,6 +6,12 @@
  */
 export const OUTREACH_EMAIL_DOMAIN = "adgyn.com";
 
+// Replies are received on a dedicated subdomain: Resend inbound requires the MX
+// record on `inbound.<domain>`, so mail is captured at <local>@inbound.adgyn.com
+// while sending stays on the verified apex (best deliverability). We set that
+// subdomain as Reply-To; the inbound webhook matches against it.
+export const OUTREACH_REPLY_DOMAIN = `inbound.${OUTREACH_EMAIL_DOMAIN}`;
+
 type SenderVenue = { slug: string; outreachFromEmail: string | null };
 
 // The local part of the sender, e.g. "gratitude_cafe". Uses the configured
@@ -25,9 +31,15 @@ export function outreachLocalPart(venue: SenderVenue): string {
   );
 }
 
-// The bare sender address, e.g. "gratitude_cafe@adgyn.com".
+// The bare sender address, e.g. "gratitude_cafe@adgyn.com" (the From line).
 export function outreachSenderAddress(venue: SenderVenue): string {
   return `${outreachLocalPart(venue)}@${OUTREACH_EMAIL_DOMAIN}`;
+}
+
+// The reply/receiving address on the inbound subdomain, e.g.
+// "gratitude_cafe@inbound.adgyn.com" (Reply-To + inbound-webhook matching).
+export function outreachReplyAddress(venue: SenderVenue): string {
+  return `${outreachLocalPart(venue)}@${OUTREACH_REPLY_DOMAIN}`;
 }
 
 // The full From header, e.g. `Gratitude Coffee Bar <gratitude_cafe@adgyn.com>`.

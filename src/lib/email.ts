@@ -73,6 +73,29 @@ This invite expires in 7 days.`;
   }
 }
 
+// Fetch the full body of a received (inbound) email by its id. The
+// email.received webhook carries metadata only — text/html come from this
+// separate call. Returns null if Resend isn't configured or the lookup fails.
+export async function getReceivedEmail(emailId: string): Promise<{
+  text: string | null;
+  html: string | null;
+  subject: string | null;
+} | null> {
+  if (!resend) return null;
+  try {
+    const { data, error } = await resend.emails.receiving.get(emailId);
+    if (error || !data) return null;
+    return {
+      text: data.text ?? null,
+      html: data.html ?? null,
+      subject: data.subject ?? null,
+    };
+  } catch (e) {
+    console.error("getReceivedEmail failed:", e);
+    return null;
+  }
+}
+
 // Plain-text outreach email sent on a host's behalf. `from` must be an
 // @adgyn.com address (our verified domain) — the caller is responsible for
 // enforcing that. `replyTo` routes responses back to the host's real inbox.

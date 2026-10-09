@@ -8,7 +8,7 @@ import {
   OUTREACH_DAILY_SEND_LIMIT,
 } from "@/lib/features";
 import { sendOutreachEmail } from "@/lib/email";
-import { outreachSenderFrom, outreachSenderAddress } from "@/lib/outreach";
+import { outreachSenderFrom, outreachReplyAddress } from "@/lib/outreach";
 import { revalidatePath } from "next/cache";
 
 // Errors thrown from a Server Action are redacted to a generic "React error
@@ -159,10 +159,10 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
   }
 
   const from = outreachSenderFrom(venue);
-  // Route replies to the venue's own @adgyn.com inbox so they're captured by the
-  // inbound webhook and shown in-app. An explicit outreach_reply_to overrides
-  // (e.g. to also/instead reach a host's personal inbox).
-  const replyTo = venue.outreachReplyTo?.trim() || outreachSenderAddress(venue);
+  // Route replies to the venue's inbound.adgyn.com address so they're captured
+  // by the inbound webhook and shown in-app. An explicit outreach_reply_to
+  // overrides (e.g. to also/instead reach a host's personal inbox).
+  const replyTo = venue.outreachReplyTo?.trim() || outreachReplyAddress(venue);
   const subject = `Would ${prospect.businessName} like to be on our coffee sleeves?`;
   const body =
     prospect.outreachMessage?.trim() || defaultMessage(venue.name, prospect);
