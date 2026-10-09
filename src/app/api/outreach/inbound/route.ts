@@ -119,20 +119,34 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ ok: true, deduped: true });
   }
 
-  // Match the recipient @adgyn.com address back to a venue. The venue table is
-  // tiny, so deriving each sender address in memory is cheap and keeps the
-  // matching identical to how we send.
+  // Match the recipient address back to a venue. The venue table is tiny, so
+  // deriving each reply address in memory is cheap. We match either the derived
+  // inbound.adgyn.com address or an explicit outreach_reply_to override (e.g. a
+  // managed <id>.resend.app address) — mirroring what the send side uses as
+  // Reply-To, so a configured override is still captured.
   const venues = await prisma.venue.findMany({
-    select: { id: true, name: true, slug: true, outreachFromEmail: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      outreachFromEmail: true,
+      outreachReplyTo: true,
+    },
   });
   const toSet = new Set(toList);
-  const venue = venues.find((v) =>
-    toSet.has(outreachReplyAddress(v).toLowerCase())
-  );
-  if (!venue) {
+  const venueMatch = venues
+    .map((v) => ({
+      venue: v,
+      addr: [outreachReplyAddress(v).toLowerCase(), v.outreachReplyTo?.trim().toLowerCase()]
+        .filter((a): a is string => !!a)
+        .find((a) => toSet.has(a)),
+    }))
+    .find((m) => m.addr);
+  if (!venueMatch) {
     // Not addressed to any venue's reply inbox — nothing to attach it to.
     return NextResponse.json({ ok: true, ignored: "no venue match" });
   }
+  const venue = venueMatch.venue;
 
   // Best-effort prospect match by sender email within that venue.
   const prospect = await prisma.prospect.findFirst({
@@ -154,7 +168,7 @@ export async function POST(req: NextRequest) {
       prospectId: prospect?.id ?? null,
       providerId,
       fromEmail,
-      toEmail: outreachReplyAddress(venue),
+      toEmail: venueMatch.addr!,
       subject,
       text: full?.text ?? null,
       html: full?.html ?? null,
