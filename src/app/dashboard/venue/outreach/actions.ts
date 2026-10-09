@@ -123,6 +123,7 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
     select: {
       name: true,
       slug: true,
+      outreachFromName: true,
       outreachFromEmail: true,
       outreachReplyTo: true,
     },

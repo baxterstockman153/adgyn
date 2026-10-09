@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { outreachEnabled } from "@/lib/features";
-import { createProspect, deleteProspect } from "../actions";
+import { outreachSenderFrom, outreachLocalPart, OUTREACH_EMAIL_DOMAIN } from "@/lib/outreach";
+import { createProspect, deleteProspect, updateVenueOutreachSender } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,23 @@ const STATUS_CHIP: Record<string, string> = {
 
 export default async function AdminProspects() {
   const [venues, prospects] = await Promise.all([
-    prisma.venue.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.venue.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        outreachFromName: true,
+        outreachFromEmail: true,
+      },
+    }),
     prisma.prospect.findMany({
       orderBy: [{ venueId: "asc" }, { createdAt: "desc" }],
     }),
   ]);
 
   const venueName = new Map(venues.map((v) => [v.id, v.name]));
+  const outreachVenues = venues.filter((v) => outreachEnabled(v.id));
 
   return (
     <div>
@@ -34,6 +45,63 @@ export default async function AdminProspects() {
         add a venue in <code className="bg-gray-100 px-1 rounded">features.ts</code>{" "}
         to switch it on for them.
       </p>
+
+      {/* Outreach sender (From line) per venue */}
+      {outreachVenues.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-gray-700 mb-1">Outreach sender (From line)</h2>
+          <p className="text-xs text-gray-400 mb-3">
+            How sent emails appear. Name shows before the address; the address is
+            always <code className="bg-gray-100 px-1 rounded">@{OUTREACH_EMAIL_DOMAIN}</code>{" "}
+            (our verified domain). Set a person&apos;s name to read less like a storefront.
+          </p>
+          <div className="space-y-3">
+            {outreachVenues.map((v) => (
+              <form
+                key={v.id}
+                action={updateVenueOutreachSender}
+                className="bg-white rounded-xl shadow-sm p-4"
+              >
+                <input type="hidden" name="venueId" value={v.id} />
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="font-medium text-sm">{v.name}</span>
+                  <span className="text-xs text-gray-400 truncate">
+                    Now: {outreachSenderFrom(v)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                  <Field label="Sender name">
+                    <input
+                      name="fromName"
+                      defaultValue={v.outreachFromName ?? ""}
+                      placeholder={v.name}
+                      className={inputCls}
+                    />
+                  </Field>
+                  <Field label="Address">
+                    <div className="flex items-center">
+                      <input
+                        name="fromLocal"
+                        defaultValue={outreachLocalPart(v)}
+                        className={`${inputCls} rounded-r-none`}
+                      />
+                      <span className="px-2 py-2 text-sm text-gray-400 bg-gray-50 border border-l-0 border-gray-200 rounded-r-lg whitespace-nowrap">
+                        @{OUTREACH_EMAIL_DOMAIN}
+                      </span>
+                    </div>
+                  </Field>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Add prospect */}
       <form
