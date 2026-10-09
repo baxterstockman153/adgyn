@@ -7,6 +7,7 @@ import {
   markOutreachOpened,
   sendProspectEmail,
 } from "./actions";
+import { stripQuotedReply } from "@/lib/outreach";
 
 type Status = "new" | "contacted" | "interested" | "won" | "lost";
 
@@ -17,6 +18,8 @@ type Reply = {
   text: string | null;
   receivedAt: string;
 };
+
+type Message = { id: string; body: string; sentAt: string };
 
 type Prospect = {
   id: string;
@@ -32,7 +35,12 @@ type Prospect = {
   outreachMessage: string | null;
   status: Status;
   replies: Reply[];
+  emails: Message[];
 };
+
+type ConvoItem =
+  | { kind: "sent"; id: string; body: string; at: string }
+  | { kind: "received"; id: string; from: string; body: string; at: string };
 
 const STAGES: { value: Status; label: string; dot: string; chip: string }[] = [
   { value: "new", label: "New", dot: "bg-gray-400", chip: "bg-gray-100 text-gray-600" },
@@ -152,12 +160,29 @@ function ProspectCard({
   const [noteSaved, setNoteSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingSend, setConfirmingSend] = useState(false);
-  const [sent, setSent] = useState(false); // has at least one email been sent
   const [justSent, setJustSent] = useState(false); // transient "Sent ✓" flash
   const [pending, startTransition] = useTransition();
 
   const stage = STAGES.find((s) => s.value === prospect.status)!;
-  const message = prospect.outreachMessage?.trim() || defaultMessage(venueName, prospect);
+  const suggested = prospect.outreachMessage?.trim() || defaultMessage(venueName, prospect);
+
+  // Sent messages live in local state so a new send appears immediately; replies
+  // come from props. The composer is prefilled with the suggested pitch for the
+  // first touch, then empties for follow-ups.
+  const [sentMsgs, setSentMsgs] = useState<Message[]>(prospect.emails);
+  const hasSent = sentMsgs.length > 0;
+  const [draft, setDraft] = useState(prospect.emails.length === 0 ? suggested : "");
+
+  const conversation: ConvoItem[] = [
+    ...sentMsgs.map((m) => ({ kind: "sent" as const, id: m.id, body: m.body, at: m.sentAt })),
+    ...prospect.replies.map((r) => ({
+      kind: "received" as const,
+      id: r.id,
+      from: r.fromEmail,
+      body: stripQuotedReply(r.text),
+      at: r.receivedAt,
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
 
   function changeStatus(status: Status) {
     if (status === prospect.status) return;
@@ -173,8 +198,8 @@ function ProspectCard({
     });
   }
 
-  function copyMessage() {
-    navigator.clipboard.writeText(message).then(
+  function copyText(text: string) {
+    navigator.clipboard.writeText(text).then(
       () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1800);
@@ -199,12 +224,18 @@ function ProspectCard({
   }
 
   function sendEmail() {
+    const body = draft.trim();
+    if (!body) {
+      setError("Message can't be empty.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
-      const res = await sendProspectEmail(prospect.id);
+      const res = await sendProspectEmail(prospect.id, body);
       if (res.ok) {
         setConfirmingSend(false);
-        setSent(true);
+        setSentMsgs((m) => [...m, res.message]);
+        setDraft(""); // ready for a follow-up
         setJustSent(true);
         setTimeout(() => setJustSent(false), 2000);
         if (res.movedToContacted) {
@@ -294,100 +325,117 @@ function ProspectCard({
             </Detail>
           </div>
 
-          {/* Outreach message */}
+          {/* Conversation */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-gray-400 uppercase tracking-wider">
-                Suggested message
-              </span>
-              <div className="flex items-center gap-2">
-                {sendEnabled && prospect.email && (
+            <span className="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">
+              Conversation
+            </span>
+
+            {conversation.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {conversation.map((m) =>
+                  m.kind === "sent" ? (
+                    <div key={m.id} className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-gray-100 px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">
+                          You · {new Date(m.at).toLocaleString()}
+                        </div>
+                        <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">
+                          {m.body}
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={m.id} className="flex justify-start">
+                      <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-emerald-50 border border-emerald-100 px-3 py-2">
+                        <div className="text-[10px] uppercase tracking-wider text-emerald-600 mb-0.5 break-all">
+                          {m.from} · {new Date(m.at).toLocaleString()}
+                        </div>
+                        <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">
+                          {m.body || "(no text)"}
+                        </pre>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+            {sendEnabled && prospect.email ? (
+              <div>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  rows={hasSent ? 3 : 6}
+                  placeholder={hasSent ? "Write a follow-up…" : "Your message…"}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <div className="flex items-center gap-2 mt-1.5">
                   <button
                     onClick={() => {
                       setError(null);
-                      setConfirmingSend((c) => !c);
+                      setConfirmingSend(true);
                     }}
-                    disabled={pending}
+                    disabled={pending || !draft.trim()}
                     className="text-xs px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50"
                   >
-                    {justSent ? "Sent ✓" : sent ? "Send follow-up" : "Send email"}
-                  </button>
-                )}
-                <button
-                  onClick={copyMessage}
-                  className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-            </div>
-            <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100">
-              {message}
-            </pre>
-
-            {confirmingSend && prospect.email && (
-              <div className="mt-2 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm">
-                <p className="text-gray-700">
-                  Send this message to{" "}
-                  <span className="font-medium">{prospect.email}</span>?
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  From <span className="font-medium">{senderEmail}</span> · replies
-                  show up here under this prospect. Limit 100 emails/day.
-                </p>
-                <div className="flex items-center gap-2 mt-2.5">
-                  <button
-                    onClick={sendEmail}
-                    disabled={pending}
-                    className="text-xs px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50"
-                  >
-                    {pending ? "Sending…" : "Send now"}
+                    {justSent ? "Sent ✓" : hasSent ? "Send follow-up" : "Send email"}
                   </button>
                   <button
-                    onClick={() => setConfirmingSend(false)}
-                    disabled={pending}
-                    className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-white transition-colors disabled:opacity-50"
+                    onClick={() => copyText(draft)}
+                    disabled={!draft.trim()}
+                    className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-40"
                   >
-                    Cancel
+                    {copied ? "Copied!" : "Copy"}
                   </button>
                 </div>
+
+                {confirmingSend && (
+                  <div className="mt-2 rounded-lg border border-purple-200 bg-purple-50 p-3 text-sm">
+                    <p className="text-gray-700">
+                      Send to <span className="font-medium">{prospect.email}</span>?
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      From <span className="font-medium">{senderEmail}</span> · replies
+                      show up here. Limit 100 emails/day.
+                    </p>
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <button
+                        onClick={sendEmail}
+                        disabled={pending}
+                        className="text-xs px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50"
+                      >
+                        {pending ? "Sending…" : "Send now"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmingSend(false)}
+                        disabled={pending}
+                        className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg font-medium text-gray-600 hover:bg-white transition-colors disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Sending not enabled for this venue — show the suggested pitch to copy.
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-gray-400">Suggested message</span>
+                  <button
+                    onClick={() => copyText(suggested)}
+                    className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-100">
+                  {suggested}
+                </pre>
               </div>
             )}
           </div>
-
-          {/* Replies received to the venue's @adgyn.com inbox */}
-          {prospect.replies.length > 0 && (
-            <div>
-              <span className="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">
-                Replies
-              </span>
-              <div className="space-y-2">
-                {prospect.replies.map((r) => (
-                  <div
-                    key={r.id}
-                    className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-gray-700 break-all">
-                        {r.fromEmail}
-                      </span>
-                      <span className="text-xs text-gray-400 flex-shrink-0">
-                        {new Date(r.receivedAt).toLocaleString()}
-                      </span>
-                    </div>
-                    {r.subject && (
-                      <div className="text-xs text-gray-500 mt-0.5">{r.subject}</div>
-                    )}
-                    {r.text && (
-                      <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 mt-1.5">
-                        {r.text.trim()}
-                      </pre>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Status controls */}
           <div>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { stripQuotedReply } from "@/lib/outreach";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +59,9 @@ export default async function AdminOutreachReplies() {
               {r.subject && (
                 <div className="text-sm text-gray-500 mb-1">{r.subject}</div>
               )}
-              {r.text && (
+              {stripQuotedReply(r.text) && (
                 <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700">
-                  {r.text.trim()}
+                  {stripQuotedReply(r.text)}
                 </pre>
               )}
             </div>
