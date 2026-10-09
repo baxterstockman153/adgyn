@@ -12,7 +12,10 @@ import { makePrisma } from "./_db";
 const DEMO_VENUE_ID = "6fe24b2a-215d-437c-8ca7-bfd0d09ec038"; // Bean & Gone (demo)
 const MANAGED_REPLY = "outreachdemo@thiheleori.resend.app"; // Resend managed inbox
 const TEST_PROSPECT = "🧪 Reply Test (demo)";
-const TEST_EMAIL = "mark.huber153+outreachtest@gmail.com"; // a controllable inbox
+// Use the base Gmail (not a +alias): Gmail sends replies from the base address,
+// so matching the prospect by sender only works if the prospect email is the
+// base one. A real prospect replies from the exact address we wrote to.
+const TEST_EMAIL = "mark.huber153@gmail.com";
 
 async function main() {
   const prisma = makePrisma();
