@@ -29,7 +29,8 @@ export function advancedMetricsEnabled(brandId: string): boolean {
  */
 const OUTREACH_VENUES = new Set<string>([
   "2de087bf-f2af-4afe-aa7c-2ec18fb15d0d", // Gratitude Coffee Bar (pilot)
-  "6fe24b2a-215d-437c-8ca7-bfd0d09ec038", // Bean & Gone (demo) — 65 seeded prospects
+  "6fe24b2a-215d-437c-8ca7-bfd0d09ec038", // Bean & Gone (demo) — Walnut Creek prospects
+  "660aebe5-734e-44d0-8ad8-2f07e3ebad7e", // The Daily Pour (demo) — Robert, Walnut Creek prospects
 ]);
 
 export function outreachEnabled(venueId: string): boolean {
