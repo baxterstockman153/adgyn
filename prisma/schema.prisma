@@ -64,6 +64,7 @@ model Venue {
   campaigns          Campaign[]
   prospects          Prospect[]
   outreachEmails     OutreachEmail[]
+  outreachReplies    OutreachReply[]
 
   @@map("venues")
 }
@@ -160,8 +161,9 @@ model Prospect {
   statusUpdatedAt DateTime       @default(now()) @map("status_updated_at")
   createdAt       DateTime       @default(now()) @map("created_at")
 
-  venue  Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  emails OutreachEmail[]
+  venue   Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  emails  OutreachEmail[]
+  replies OutreachReply[]
 
   @@index([venueId])
   @@map("prospects")
@@ -196,6 +198,30 @@ model OutreachEmail {
   @@index([venueId, sentAt])
   @@index([prospectId])
   @@map("outreach_emails")
+}
+
+// A reply received to a venue's @adgyn.com outreach address, delivered by
+// Resend's inbound `email.received` webhook. `prospectId` is null when we can't
+// match the sender to a known prospect (surfaced in the admin view for triage).
+// `providerId` dedupes webhook retries.
+model OutreachReply {
+  id         String   @id @default(uuid())
+  venueId    String   @map("venue_id")
+  prospectId String?  @map("prospect_id")
+  providerId String?  @unique @map("provider_id")
+  fromEmail  String   @map("from_email")
+  toEmail    String   @map("to_email")
+  subject    String?
+  text       String?
+  html       String?
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  venue    Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  prospect Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, receivedAt])
+  @@index([prospectId])
+  @@map("outreach_replies")
 }
 
 // ── Invites ──

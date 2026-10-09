@@ -10,6 +10,14 @@ import {
 
 type Status = "new" | "contacted" | "interested" | "won" | "lost";
 
+type Reply = {
+  id: string;
+  fromEmail: string;
+  subject: string | null;
+  text: string | null;
+  receivedAt: string;
+};
+
 type Prospect = {
   id: string;
   businessName: string;
@@ -23,6 +31,7 @@ type Prospect = {
   notes: string;
   outreachMessage: string | null;
   status: Status;
+  replies: Reply[];
 };
 
 const STAGES: { value: Status; label: string; dot: string; chip: string }[] = [
@@ -222,6 +231,14 @@ function ProspectCard({
             </div>
           </div>
         </button>
+        {prospect.replies.length > 0 && (
+          <span
+            className="text-xs px-2 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700"
+            title={`${prospect.replies.length} repl${prospect.replies.length === 1 ? "y" : "ies"}`}
+          >
+            💬 {prospect.replies.length}
+          </span>
+        )}
         <span className={`text-xs px-2 py-1 rounded-full font-medium ${stage.chip}`}>
           {stage.label}
         </span>
@@ -313,7 +330,7 @@ function ProspectCard({
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   From <span className="font-medium">{senderEmail}</span> · replies
-                  come back to your inbox. Limit 100 emails/day.
+                  show up here under this prospect. Limit 100 emails/day.
                 </p>
                 <div className="flex items-center gap-2 mt-2.5">
                   <button
@@ -334,6 +351,40 @@ function ProspectCard({
               </div>
             )}
           </div>
+
+          {/* Replies received to the venue's @adgyn.com inbox */}
+          {prospect.replies.length > 0 && (
+            <div>
+              <span className="block text-xs text-gray-400 uppercase tracking-wider mb-1.5">
+                Replies
+              </span>
+              <div className="space-y-2">
+                {prospect.replies.map((r) => (
+                  <div
+                    key={r.id}
+                    className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-gray-700 break-all">
+                        {r.fromEmail}
+                      </span>
+                      <span className="text-xs text-gray-400 flex-shrink-0">
+                        {new Date(r.receivedAt).toLocaleString()}
+                      </span>
+                    </div>
+                    {r.subject && (
+                      <div className="text-xs text-gray-500 mt-0.5">{r.subject}</div>
+                    )}
+                    {r.text && (
+                      <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 mt-1.5">
+                        {r.text.trim()}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Status controls */}
           <div>
