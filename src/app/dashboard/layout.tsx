@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { outreachEnabled } from "@/lib/features";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -21,15 +22,28 @@ export default async function DashboardLayout({
     include: { memberships: true },
   });
 
-  const orgType = dbUser?.memberships[0]?.orgType;
+  const membership = dbUser?.memberships[0];
+  const orgType = membership?.orgType;
+  const showOutreach =
+    orgType === "venue" && !!membership && outreachEnabled(membership.orgId);
 
   return (
     <div className="min-h-screen bg-[#F5F0EB]">
       <nav className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/dashboard" className="font-serif text-xl font-bold">
-            ad<span className="text-purple-700">gyn</span>
-          </Link>
+          <div className="flex items-center gap-5">
+            <Link href="/dashboard" className="font-serif text-xl font-bold">
+              ad<span className="text-purple-700">gyn</span>
+            </Link>
+            {showOutreach && (
+              <Link
+                href="/dashboard/venue/outreach"
+                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                Outreach
+              </Link>
+            )}
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">{user.email}</span>
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">

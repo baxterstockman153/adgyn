@@ -46,15 +46,17 @@ enum MembershipRole {
 // ── Core Entities ──
 
 model Venue {
-  id              String     @id @default(uuid())
-  name            String
-  slug            String     @unique
-  logoUrl         String?    @map("logo_url")
-  websiteUrl      String?    @map("website_url")
-  address         String?
-  fallbackMessage String     @default("Check back soon!") @map("fallback_message")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  campaigns       Campaign[]
+  id                 String     @id @default(uuid())
+  name               String
+  slug               String     @unique
+  logoUrl            String?    @map("logo_url")
+  websiteUrl         String?    @map("website_url")
+  address            String?
+  fallbackMessage    String     @default("Check back soon!") @map("fallback_message")
+  lastOutreachOpenAt DateTime?  @map("last_outreach_open_at")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  campaigns          Campaign[]
+  prospects          Prospect[]
 
   @@map("venues")
 }
@@ -124,6 +126,45 @@ enum PlacementStatus {
   pending
   active
   completed
+}
+
+// ── Outreach (host prospecting) ──
+
+// A business the venue might recruit as a guest/brand. Populated manually by
+// the adgyn team for now (no import / AI research yet) — the point of v1 is to
+// learn whether hosts actually work these leads before we automate sourcing.
+model Prospect {
+  id              String         @id @default(uuid())
+  venueId         String         @map("venue_id")
+  businessName    String         @map("business_name")
+  address         String?
+  city            String?
+  phone           String?
+  website         String?
+  contactName     String?        @map("contact_name")
+  contactTitle    String?        @map("contact_title")
+  email           String?
+  // Host's own scratchpad notes while working the lead.
+  notes           String?
+  // Suggested outreach copy. We fill this in; the UI falls back to a template
+  // built from venue + contact names when null.
+  outreachMessage String?        @map("outreach_message")
+  status          ProspectStatus @default(new)
+  statusUpdatedAt DateTime       @default(now()) @map("status_updated_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@map("prospects")
+}
+
+enum ProspectStatus {
+  new
+  contacted
+  interested
+  won
+  lost
 }
 
 // ── Invites ──
