@@ -152,7 +152,8 @@ function ProspectCard({
   const [noteSaved, setNoteSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingSend, setConfirmingSend] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState(false); // has at least one email been sent
+  const [justSent, setJustSent] = useState(false); // transient "Sent ✓" flash
   const [pending, startTransition] = useTransition();
 
   const stage = STAGES.find((s) => s.value === prospect.status)!;
@@ -204,6 +205,8 @@ function ProspectCard({
       if (res.ok) {
         setConfirmingSend(false);
         setSent(true);
+        setJustSent(true);
+        setTimeout(() => setJustSent(false), 2000);
         if (res.movedToContacted) {
           onChange({ ...prospect, status: "contacted" });
         }
@@ -304,10 +307,10 @@ function ProspectCard({
                       setError(null);
                       setConfirmingSend((c) => !c);
                     }}
-                    disabled={pending || sent}
+                    disabled={pending}
                     className="text-xs px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50"
                   >
-                    {sent ? "Sent ✓" : "Send email"}
+                    {justSent ? "Sent ✓" : sent ? "Send follow-up" : "Send email"}
                   </button>
                 )}
                 <button
