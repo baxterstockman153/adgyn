@@ -330,7 +330,7 @@ function ProspectCard({
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   From <span className="font-medium">{senderEmail}</span> · replies
-                  come back to your inbox. Limit 100 emails/day.
+                  show up here under this prospect. Limit 100 emails/day.
                 </p>
                 <div className="flex items-center gap-2 mt-2.5">
                   <button
