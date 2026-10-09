@@ -8,6 +8,7 @@ import {
   OUTREACH_DAILY_SEND_LIMIT,
 } from "@/lib/features";
 import { sendOutreachEmail } from "@/lib/email";
+import { outreachSenderFrom } from "@/lib/outreach";
 import { revalidatePath } from "next/cache";
 
 // Errors thrown from a Server Action are redacted to a generic "React error
@@ -41,28 +42,6 @@ async function requireOutreachVenue(): Promise<
   return { ok: true, venueId, userEmail: user.email! };
 }
 
-// Build the venue's "From" identity on our verified adgyn.com domain. Uses the
-// configured outreach_from_email when it's an @adgyn.com address, otherwise
-// derives a local part from the slug. The domain is always forced to adgyn.com
-// so a host can never send as a domain we haven't authenticated.
-function venueSender(venue: {
-  name: string;
-  slug: string;
-  outreachFromEmail: string | null;
-}): string {
-  const configured = venue.outreachFromEmail?.trim().toLowerCase();
-  const rawLocal =
-    configured && configured.endsWith("@adgyn.com")
-      ? configured.slice(0, configured.indexOf("@"))
-      : venue.slug;
-  const local =
-    rawLocal
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]/g, "")
-      .replace(/^[._-]+|[._-]+$/g, "") || "host";
-  const displayName = venue.name.replace(/["<>\r\n]/g, "").trim();
-  return `${displayName} <${local}@adgyn.com>`;
-}
 
 export async function updateProspectStatus(
   prospectId: string,
@@ -179,7 +158,7 @@ export async function sendProspectEmail(prospectId: string): Promise<SendResult>
     };
   }
 
-  const from = venueSender(venue);
+  const from = outreachSenderFrom(venue);
   const replyTo = venue.outreachReplyTo?.trim() || auth.userEmail;
   const subject = `Would ${prospect.businessName} like to be on our coffee sleeves?`;
   const body =
