@@ -93,25 +93,41 @@ function BoardView() {
       <div className="flex-1 overflow-y-auto px-3 pb-4 min-h-0">
         {tab === "view" ? (
           <div className="space-y-2">
-            {BOARD_ENTRIES.map((e) => (
-              <div key={e.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-serif font-bold text-sm">{e.name}</div>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                      e.kind === "nonprofit"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : e.kind === "event"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-purple-100 text-purple-700"
-                    }`}
-                  >
-                    {e.category.split("·")[0].trim()}
-                  </span>
+            {[...BOARD_ENTRIES]
+              .sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0))
+              .map((e) => (
+                <div
+                  key={e.id}
+                  className={`rounded-xl shadow-sm p-3 ${
+                    e.featured ? "bg-white border-2" : "bg-white border border-gray-100"
+                  }`}
+                  style={e.featured ? { borderColor: CAFE.accent } : undefined}
+                >
+                  {e.featured && (
+                    <div
+                      className="text-[9px] font-bold uppercase tracking-wider mb-1"
+                      style={{ color: CAFE.accent }}
+                    >
+                      ★ Featured
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-serif font-bold text-sm">{e.name}</div>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        e.kind === "nonprofit"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : e.kind === "event"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-purple-100 text-purple-700"
+                      }`}
+                    >
+                      {e.category.split("·")[0].trim()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-snug">{e.blurb}</p>
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5 leading-snug">{e.blurb}</p>
-              </div>
-            ))}
+              ))}
           </div>
         ) : submitted ? (
           <div className="text-center text-sm text-gray-600 pt-10 px-4">

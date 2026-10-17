@@ -193,20 +193,28 @@ export function OrderSleeves({ initialDestination }: { initialDestination: QrExp
             <dt className="text-gray-500">QR shows</dt>
             <dd className="font-medium">{EXPERIENCE_LABEL[exp]}</dd>
           </div>
-          <div className="border-t border-gray-100 pt-2.5 flex justify-between">
-            <dt className="text-gray-500">Sleeves ({money(qtyTier.unitCents)} ea)</dt>
-            <dd className="font-medium">{money(sleeveCost)}</dd>
+          <div className="border-t border-gray-100 pt-2.5">
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 mb-1">One-time</div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Sleeves ({money(qtyTier.unitCents)} ea)</dt>
+              <dd className="font-medium">{money(sleeveCost)}</dd>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-500">{selectedPlan.name} plan</dt>
-            <dd className="font-medium">${selectedPlan.priceMonthly}/mo</dd>
+          <div className="border-t border-gray-100 pt-2.5">
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 mb-1">Recurring</div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">{selectedPlan.name} platform plan</dt>
+              <dd className="font-medium">${selectedPlan.priceMonthly}/mo</dd>
+            </div>
           </div>
         </dl>
         <div className="border-t border-gray-100 mt-3 pt-3 flex justify-between items-baseline">
           <span className="font-semibold">Due today</span>
           <span className="font-serif text-xl font-bold">{money(sleeveCost)}</span>
         </div>
-        <div className="text-xs text-gray-400 text-right">then ${selectedPlan.priceMonthly}/mo</div>
+        <div className="text-xs text-gray-400 text-right">
+          then ${selectedPlan.priceMonthly}/mo for the platform
+        </div>
         <button
           onClick={() => setPlaced(true)}
           className="w-full mt-4 py-3 rounded-xl text-white font-semibold"
