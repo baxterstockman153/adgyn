@@ -30,6 +30,7 @@ export function advancedMetricsEnabled(brandId: string): boolean {
 const OUTREACH_VENUES = new Set<string>([
   "2de087bf-f2af-4afe-aa7c-2ec18fb15d0d", // Gratitude Coffee Bar (pilot)
   "6fe24b2a-215d-437c-8ca7-bfd0d09ec038", // Bean & Gone (demo) — Walnut Creek prospects
+  "480a5c1f-bb7f-4944-a885-536b8f3aaacd", // Nirvana Soul (demo) — San Jose prospects
 ]);
 
 export function outreachEnabled(venueId: string): boolean {
@@ -50,9 +51,10 @@ export function outreachEnabled(venueId: string): boolean {
  * capped per host per day (see the outreach send action).
  */
 const OUTREACH_SEND_VENUES = new Set<string>([
-  // Demo venue only — for end-to-end testing of send + reply capture. Real
+  // Demo venues only — for end-to-end testing of send + reply capture. Real
   // hosts (incl. Gratitude) stay OFF until we deliberately flip them on.
   "6fe24b2a-215d-437c-8ca7-bfd0d09ec038", // Bean & Gone (demo)
+  "480a5c1f-bb7f-4944-a885-536b8f3aaacd", // Nirvana Soul (demo) — send ON for pilot
 ]);
 
 export function outreachSendEnabled(venueId: string): boolean {
