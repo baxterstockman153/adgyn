@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { smartSleeveEnabled } from "@/lib/features";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CampaignDashboard } from "./campaign-dashboard";
@@ -43,6 +44,10 @@ export default async function VenueDashboard({
 
   const venueId = dbUser?.memberships[0]?.orgId;
   if (!venueId) redirect("/dashboard");
+
+  // Smart Sleeves venues use that as their home — the old campaign-centric
+  // dashboard is hidden for them to avoid showing the ads product twice.
+  if (smartSleeveEnabled(venueId)) redirect("/dashboard/venue/smart-sleeve");
 
   const venue = await prisma.venue.findUnique({
     where: { id: venueId },
