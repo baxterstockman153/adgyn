@@ -5,8 +5,9 @@ import { initialScenario, parseExperience, sampleExperiences, type Cafe, type Ex
 import { INITIAL_CONTENT, type ContentDraft } from "./content-composer";
 import { INITIAL_SLEEVES, type SleeveDraft } from "./sleeve-estimate";
 import { INITIAL_CONTACTS, INITIAL_GROUPS, type Contact, type Group } from "./address-book";
+import { INITIAL_PROSPECTS, type Prospect } from "./outreach";
 
-type WorkspaceState = { drafts: Experience[]; scenario: Scenario; content: ContentDraft; sleeves: SleeveDraft; contacts: Contact[]; groups: Group[] };
+type WorkspaceState = { drafts: Experience[]; scenario: Scenario; content: ContentDraft; sleeves: SleeveDraft; contacts: Contact[]; groups: Group[]; outreach: Prospect[] };
 const subscribe = (callback: () => void) => {
   window.addEventListener("storage", callback);
   window.addEventListener("adgyn-workspace-change", callback);
@@ -31,13 +32,14 @@ function restore(raw: string | null, fallback: WorkspaceState): WorkspaceState {
     const contacts = Array.isArray(value.contacts) && value.contacts.length <= 5000 && value.contacts.every((contact: Record<string, unknown>) => contact && typeof contact.id === "string" && typeof contact.email === "string" && contact.email.length <= 254 && typeof contact.name === "string" && contact.name.length <= 120 && Array.isArray(contact.groupIds) && (contact.groupIds as unknown[]).every(id => typeof id === "string"))
       ? (value.contacts as Contact[]).map(contact => ({ ...contact, groupIds: contact.groupIds.filter(id => groupIds.has(id)) }))
       : fallback.contacts;
-    return { drafts, scenario: validScenario ? scenario : fallback.scenario, content: validContent ? content : fallback.content, sleeves: validSleeves ? sleeves : fallback.sleeves, contacts, groups };
+    const outreach = Array.isArray(value.outreach) && value.outreach.length <= 200 && value.outreach.every((prospect: Record<string, unknown>) => prospect && typeof prospect.id === "string" && typeof prospect.name === "string" && prospect.name.length <= 120 && typeof prospect.category === "string" && typeof prospect.distance === "string" && ["new", "contacted", "replied"].includes(prospect.status as string) && (prospect.reply === undefined || typeof prospect.reply === "string")) ? value.outreach as Prospect[] : fallback.outreach;
+    return { drafts, scenario: validScenario ? scenario : fallback.scenario, content: validContent ? content : fallback.content, sleeves: validSleeves ? sleeves : fallback.sleeves, contacts, groups, outreach };
   } catch { return fallback; }
 }
 
 export function useWorkspace(cafe: Cafe, demo: boolean) {
   const key = `adgyn-workspace-v2:${demo ? "demo" : "live"}:${cafe.id}`;
-  const fallback = useMemo<WorkspaceState>(() => ({ drafts: demo ? sampleExperiences(cafe) : [], scenario: initialScenario(), content: INITIAL_CONTENT, sleeves: INITIAL_SLEEVES, contacts: INITIAL_CONTACTS, groups: INITIAL_GROUPS }), [cafe, demo]);
+  const fallback = useMemo<WorkspaceState>(() => ({ drafts: demo ? sampleExperiences(cafe) : [], scenario: initialScenario(), content: INITIAL_CONTENT, sleeves: INITIAL_SLEEVES, contacts: INITIAL_CONTACTS, groups: INITIAL_GROUPS, outreach: INITIAL_PROSPECTS }), [cafe, demo]);
   const getSnapshot = useCallback(() => { try { return localStorage.getItem(key); } catch { return null; } }, [key]);
   const raw = useSyncExternalStore(subscribe, getSnapshot, serverSnapshot);
   const state = useMemo(() => restore(raw, fallback), [raw, fallback]);
