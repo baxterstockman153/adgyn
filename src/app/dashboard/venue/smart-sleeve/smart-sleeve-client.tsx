@@ -10,6 +10,7 @@ import { ExperienceEditor } from "./experience-editor";
 import { Sponsorship } from "./sponsorship";
 import { CommunityBoard } from "./community-board";
 import { ContentComposer } from "./content-composer";
+import { AddressBook } from "./address-book";
 import { SleeveEstimate } from "./sleeve-estimate";
 import { Overview } from "./overview";
 import { useWorkspace } from "./use-workspace";
@@ -35,6 +36,7 @@ export function SmartSleeveApp({ cafe, demo = false, initialExperiences = [], cl
   const [filter, setFilter] = useState<"all" | "offer" | "published" | "draft">("all");
   const [pending, setPending] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
+  const [newsTab, setNewsTab] = useState<"compose" | "contacts">("compose");
   const contentRef = useRef<HTMLElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveIds = new Set(initialExperiences.map(experience => experience.id));
@@ -119,7 +121,15 @@ export function SmartSleeveApp({ cafe, demo = false, initialExperiences = [], cl
             {claims.length > 0 && <section className="ss-card" style={{ marginTop: 22 }}><div className="ss-card-header"><div><h3>Confirm offer redemptions</h3><p>Only confirm after the participating business honors the customer’s offer. Latest 100 claims.</p></div></div>{claims.filter(claim => location === "all" || initialExperiences.some(experience => experience.id === claim.experienceId && experience.location === location)).map(claim => <div className="ss-claim-row" key={claim.id}><code>{claim.id.slice(0, 8).toUpperCase()}</code><div className="ss-row-text"><strong>{claim.business}</strong><small>{claim.headline}</small></div>{claim.redeemedAt ? <Badge tone="green">Confirmed</Badge> : isExpired(claim.expiresOn) ? <Badge>Expired</Badge> : <Button variant="secondary" disabled={pending} onClick={() => redeem(claim.id)}>Confirm redemption</Button>}</div>)}</section>}
           </>}
           {view === "board" && <CommunityBoard cafe={cafe} boards={boards} create={create} renderRow={row} />}
-          {view === "content" && <ContentComposer cafe={cafe} experiences={experiences} draft={state.content} onChange={value => { if (!setState(previous => ({ ...previous, content: value }))) notify("Your browser couldn’t save this draft."); }} origin={origin} notify={notify} onCreate={() => create()} />}
+          {view === "content" && <>
+            <div className="ss-subtabs">
+              <button type="button" aria-pressed={newsTab === "compose"} onClick={() => setNewsTab("compose")}>Compose</button>
+              <button type="button" aria-pressed={newsTab === "contacts"} onClick={() => setNewsTab("contacts")}>Address book</button>
+            </div>
+            {newsTab === "compose"
+              ? <ContentComposer cafe={cafe} experiences={experiences} draft={state.content} onChange={value => { if (!setState(previous => ({ ...previous, content: value }))) notify("Your browser couldn’t save this draft."); }} origin={origin} notify={notify} onCreate={() => create()} groups={state.groups} contacts={state.contacts} />
+              : <AddressBook contacts={state.contacts} groups={state.groups} onUpdate={patch => { if (!setState(previous => ({ ...previous, ...patch }))) notify("Your browser couldn’t save this change."); }} notify={notify} />}
+          </>}
           {view === "sleeves" && <>
             <SleeveEstimate cafe={cafe} draft={state.sleeves} onChange={value => { if (!setState(previous => ({ ...previous, sleeves: value }))) notify("Your browser couldn’t save this estimate."); }} monthlyFee={state.scenario.monthlyFee} onFeeChange={value => { if (!setState(previous => ({ ...previous, scenario: { ...previous.scenario, monthlyFee: value } }))) notify("Your browser couldn’t save this estimate."); }} notify={notify} />
             <section className="ss-card ss-card-pad" style={{ marginTop: 24 }}>
