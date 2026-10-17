@@ -78,7 +78,7 @@ export const OUTREACH_DAILY_SEND_LIMIT = 100;
  * (comma-separated) to flip it without a deploy.
  */
 const SMART_SLEEVE_VENUES = new Set<string>([
-  // Nirvana Soul (demo) venue id — filled in once the demo venue is created.
+  "480a5c1f-bb7f-4944-a885-536b8f3aaacd", // Nirvana Soul (demo) — Smart Sleeves prototype
 ]);
 
 export function smartSleeveEnabled(venueId: string): boolean {
