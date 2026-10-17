@@ -46,6 +46,10 @@ export type BoardEntry = {
   blurb: string;
   kind: "business" | "nonprofit" | "event";
   url: string;
+  // A "featured" listing is pinned to the top with a sponsored badge — the
+  // revenue hook Leti floated (e.g. downtown tech companies paying for
+  // visibility during conferences).
+  featured?: boolean;
 };
 
 export const BOARD_ENTRIES: BoardEntry[] = [
@@ -96,6 +100,15 @@ export const BOARD_ENTRIES: BoardEntry[] = [
     blurb: "South Bay roaster — wholesale beans & brewing classes.",
     kind: "business",
     url: "#",
+  },
+  {
+    id: "b7",
+    name: "Bay Area Dev Summit",
+    category: "Event · Tech Conference",
+    blurb: "Downtown SJ, Nov 12–13 — free day passes for Nirvana Soul regulars.",
+    kind: "event",
+    url: "#",
+    featured: true,
   },
 ];
 
@@ -194,3 +207,48 @@ export const PLANS: Plan[] = [
 export function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
+
+// ── Surfaces: every physical touchpoint that carries a QR ──
+// The differentiator vs. a café that already has QR tech: ONE place to manage
+// and measure QR across all their physical surfaces, not just sleeves. Each
+// surface has its own QR pointing at any destination, with its own scan count.
+export type SurfaceType = "sleeve" | "cup" | "bag" | "aframe" | "cling" | "tabletop";
+
+export const SURFACE_TYPES: Record<SurfaceType, { label: string; icon: string; note: string }> = {
+  sleeve: { label: "Coffee sleeve", icon: "☕️", note: "Ordered through Adgyn" },
+  cup: { label: "Cup / to-go lid", icon: "🥤", note: "Your own printed cups" },
+  bag: { label: "To-go bag", icon: "🛍️", note: "Pastry & retail bags" },
+  aframe: { label: "A-frame sign", icon: "🪧", note: "Sidewalk & entry" },
+  cling: { label: "Window cling", icon: "🪟", note: "Storefront glass" },
+  tabletop: { label: "Table tent", icon: "🪧", note: "In-café tables" },
+};
+
+export type Surface = {
+  id: string;
+  type: SurfaceType;
+  label: string;
+  destination: QrExperience; // where this surface's QR points
+  customUrl?: string; // used when destination === "link"
+  scans: number; // last 30 days (demo figure)
+  active: boolean;
+};
+
+// Seeded so the "scans by surface" story lands immediately: the sidewalk
+// A-frame out-scans the printed sleeve, which a café can only learn if every
+// surface is measured in one place.
+export const DEFAULT_SURFACES: Surface[] = [
+  { id: "s1", type: "aframe", label: "S 1st St sidewalk sign", destination: "link", customUrl: CAFE.appUrl, scans: 1890, active: true },
+  { id: "s2", type: "sleeve", label: "Downtown sleeves", destination: "board", scans: 1240, active: true },
+  { id: "s3", type: "cup", label: "16oz hot cups", destination: "link", customUrl: "https://nirvanasoulcoffee.com/rewards", scans: 760, active: true },
+  { id: "s4", type: "tabletop", label: "SoFA table tents", destination: "board", scans: 520, active: true },
+  { id: "s5", type: "cling", label: "Hotel De Anza window", destination: "ads", scans: 410, active: true },
+  { id: "s6", type: "bag", label: "Pastry bags", destination: "link", customUrl: "https://nirvanasoulcoffee.com/newsletter", scans: 230, active: false },
+];
+
+// Destination types we've sketched but not built — shown as disabled "Soon"
+// tiles so Dap sees the roadmap without us having to fake the flows.
+export const COMING_SOON_DESTINATIONS: { icon: string; label: string }[] = [
+  { icon: "✉️", label: "Newsletter sign-up" },
+  { icon: "📝", label: "Feedback survey" },
+  { icon: "⭐️", label: "Loyalty / rewards" },
+];
