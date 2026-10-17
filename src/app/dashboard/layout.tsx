@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { outreachEnabled } from "@/lib/features";
+import { outreachEnabled, smartSleeveEnabled } from "@/lib/features";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -26,6 +26,8 @@ export default async function DashboardLayout({
   const orgType = membership?.orgType;
   const showOutreach =
     orgType === "venue" && !!membership && outreachEnabled(membership.orgId);
+  const showSmartSleeve =
+    orgType === "venue" && !!membership && smartSleeveEnabled(membership.orgId);
 
   return (
     <div className="min-h-screen bg-[#F5F0EB]">
@@ -41,6 +43,14 @@ export default async function DashboardLayout({
                 className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
               >
                 Outreach
+              </Link>
+            )}
+            {showSmartSleeve && (
+              <Link
+                href="/dashboard/venue/smart-sleeve"
+                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                Smart Sleeves
               </Link>
             )}
           </div>

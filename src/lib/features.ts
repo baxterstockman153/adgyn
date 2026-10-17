@@ -67,3 +67,25 @@ export function outreachSendEnabled(venueId: string): boolean {
 // Max emails a single host may send from the outreach module per day (UTC).
 // Mirrors the Resend free-tier daily ceiling and acts as an anti-abuse guard.
 export const OUTREACH_DAILY_SEND_LIMIT = 100;
+
+/**
+ * Smart Sleeves demo (the pivot: café orders sleeves + controls what the QR
+ * points to — community board / ads / custom link — plus standalone QR codes).
+ * This is a FRONTEND-ONLY sales prototype built for a specific prospect to
+ * explore via a real login, so it's gated per-venue and OFF for everyone except
+ * the demo venue. Nothing behind the modules is wired to a backend. Enable a
+ * venue by adding its ID here or via the SMART_SLEEVE_VENUE_IDS env var
+ * (comma-separated) to flip it without a deploy.
+ */
+const SMART_SLEEVE_VENUES = new Set<string>([
+  // Nirvana Soul (demo) venue id — filled in once the demo venue is created.
+]);
+
+export function smartSleeveEnabled(venueId: string): boolean {
+  if (SMART_SLEEVE_VENUES.has(venueId)) return true;
+  const extra = (process.env.SMART_SLEEVE_VENUE_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return extra.includes(venueId);
+}
