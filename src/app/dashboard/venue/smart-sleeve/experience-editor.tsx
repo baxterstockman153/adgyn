@@ -33,7 +33,7 @@ export function ExperienceEditor({ cafe, initial, demo, canPublish, onSave, onPu
   }
   return <>
     <button type="button" className="ss-back" onClick={() => { onSave(draft); onBack(); }} disabled={pending}><Icon name="arrow" size={16} /> Save draft & go back</button>
-    <div className="ss-heading"><div><div className="ss-eyebrow">QR code</div><h1>{initial.name ? "Edit your QR code" : "Create a QR code"}</h1><p>Pick what it does, add your details, and preview what customers see.</p></div><Badge>{demo ? "Demo draft" : "Draft"}</Badge></div>
+    <div className="ss-heading"><div><div className="ss-eyebrow">{draft.kind === "board" ? "Community board" : "QR code"}</div><h1>{initial.name ? "Edit" : "Create"} {draft.kind === "board" ? "a community board" : "a QR code"}</h1><p>Pick what it does, add your details, and preview what customers see.</p></div><Badge>{demo ? "Demo draft" : "Draft"}</Badge></div>
     <div className="ss-editor-grid">
       <div className="ss-card">
         <section className="ss-editor-section"><div className="ss-section-label"><span className="ss-section-number">1</span><h3>What should the QR do?</h3></div><div className="ss-choice-grid">{(Object.keys(EXPERIENCE_KINDS) as ExperienceKind[]).map(kind => <button key={kind} type="button" className="ss-choice" aria-pressed={draft.kind === kind} onClick={() => update({ kind })}><Icon name={EXPERIENCE_KINDS[kind].icon} /><strong>{EXPERIENCE_KINDS[kind].label}</strong><small>{EXPERIENCE_KINDS[kind].description}</small>{draft.kind === kind && <span className="ss-choice-check"><Icon name="check" size={15} /></span>}</button>)}</div></section>
