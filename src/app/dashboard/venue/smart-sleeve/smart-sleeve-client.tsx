@@ -1,507 +1,123 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  CAFE,
-  ANALYTICS,
-  AD_PROSPECTS,
-  LINK_PRESETS,
-  DEFAULT_SURFACES,
-  COMING_SOON_DESTINATIONS,
-  type QrExperience,
-  type AdProspect,
-  type Surface,
-} from "./_data";
-import { PhonePreview, type PreviewCard } from "./preview";
-import { OrderSleeves, CreateQr } from "./order";
-import { SurfacesView } from "./surfaces";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { EXPERIENCE_KINDS, SURFACES, experiencePath, isExpired, newExperience, validateExperience, type Cafe, type Claim, type Experience, type ExperienceKind } from "@/lib/smart-sleeves";
+import { publishExperience, pauseExperience, confirmRedemption } from "./actions";
+import { Badge, Button, Icon, Notice, QrCode, copyText } from "./ui";
+import { ExperienceEditor } from "./experience-editor";
+import { Sponsorship } from "./sponsorship";
+import { ContentComposer } from "./content-composer";
+import { SleeveEstimate } from "./sleeve-estimate";
+import { Overview } from "./overview";
+import { useWorkspace } from "./use-workspace";
+import "./workspace.css";
 
-type View = "home" | "destination" | "surfaces" | "order" | "qr";
+type View = "overview" | "experiences" | "sponsors" | "content" | "sleeves";
+const NAV: { id: View; label: string; mobile: string; icon: string }[] = [
+  { id: "overview", label: "Overview", mobile: "Home", icon: "home" },
+  { id: "experiences", label: "QR experiences", mobile: "QR codes", icon: "qr" },
+  { id: "sponsors", label: "Sponsors & costs", mobile: "Sponsors", icon: "heart" },
+  { id: "content", label: "Campaign content", mobile: "Content", icon: "mail" },
+  { id: "sleeves", label: "Sleeves & pricing", mobile: "Sleeves", icon: "cup" },
+];
 
-const STORAGE_KEY = "adgyn_smartsleeve_demo_v1";
-
-const EXPERIENCE: Record<QrExperience, { label: string; icon: string; blurb: string }> = {
-  board: { label: "Community Board", icon: "📌", blurb: "A digital directory of local businesses, nonprofits & events — customers can browse or add their own." },
-  ads: { label: "Local Advertisers", icon: "🤝", blurb: "Feature nearby businesses who pay to be on your sleeves. Invite them and set your price." },
-  link: { label: "Custom Link", icon: "🔗", blurb: "Point the QR straight at your app, rewards program, newsletter or any page." },
-};
-
-function cards(prospects: AdProspect[]): PreviewCard[] {
-  const invited = prospects.filter((p) => p.invited).slice(0, 3);
-  const list: PreviewCard[] = invited.map((p) => ({
-    name: p.name,
-    tagline: `${p.category.split("·").slice(-1)[0].trim()} · ${p.distance}`,
-    cta: "Learn more",
-  }));
-  list.push({ name: CAFE.name, tagline: "Order ahead on our app", cta: "Open the app" });
-  return list.slice(0, 4);
-}
-
-type DemoState = {
-  destination: QrExperience;
-  linkLabel: string;
-  linkUrl: string;
-  prospects: AdProspect[];
-  surfaces: Surface[];
-};
-
-const DEFAULT_STATE: DemoState = {
-  destination: "board",
-  linkLabel: LINK_PRESETS[0].label,
-  linkUrl: LINK_PRESETS[0].url,
-  prospects: AD_PROSPECTS,
-  surfaces: DEFAULT_SURFACES,
-};
-
-export function SmartSleeveApp() {
-  const [view, setView] = useState<View>("home");
-  // One state object so the localStorage hydration below is a single setState.
-  const [state, setState] = useState<DemoState>(DEFAULT_STATE);
-  const { destination, linkLabel, linkUrl, prospects, surfaces } = state;
-  const loaded = useRef(false);
-
-  const setDestination = (destination: QrExperience) => setState((s) => ({ ...s, destination }));
-  const setLinkLabel = (linkLabel: string) => setState((s) => ({ ...s, linkLabel }));
-  const setLinkUrl = (linkUrl: string) => setState((s) => ({ ...s, linkUrl }));
-  const setProspects = (prospects: AdProspect[]) => setState((s) => ({ ...s, prospects }));
-  const setSurfaces = (surfaces: Surface[]) => setState((s) => ({ ...s, surfaces }));
-
-  // Hydrate the café's saved choices once on mount (frontend-only demo).
-  useEffect(() => {
+export function SmartSleeveApp({ cafe, demo = false, initialExperiences = [], claims = [], canPublish = true, hasOutreach = false }: { cafe: Cafe; demo?: boolean; initialExperiences?: Experience[]; claims?: Claim[]; canPublish?: boolean; hasOutreach?: boolean }) {
+  const router = useRouter();
+  const { state, setState } = useWorkspace(cafe, demo);
+  const [view, setView] = useState<View>("overview");
+  const [editing, setEditing] = useState<Experience | null>(null);
+  const [sharing, setSharing] = useState<Experience | null>(null);
+  const [toast, setToast] = useState("");
+  const [location, setLocation] = useState("all");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "offer" | "published" | "draft">("all");
+  const [pending, setPending] = useState(false);
+  const contentRef = useRef<HTMLElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveIds = new Set(initialExperiences.map(experience => experience.id));
+  const draftIds = new Set(state.drafts.map(experience => experience.id));
+  const experiences = [...state.drafts, ...initialExperiences.filter(experience => !draftIds.has(experience.id))];
+  const visible = experiences.filter(experience => location === "all" || experience.location === location);
+  const published = initialExperiences.filter(experience => experience.published && (location === "all" || experience.location === location));
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  function notify(message: string) {
+    setToast(message);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setToast(""), 6000);
+  }
+  function navigate(next: View) {
+    if (editing) saveDraft(editing);
+    setView(next); setEditing(null); setSharing(null);
+    contentRef.current?.focus();
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  function saveDraft(value: Experience) {
+    const success = setState(previous => ({ ...previous, drafts: [{ ...value, published: false }, ...previous.drafts.filter(experience => experience.id !== value.id)] }));
+    notify(success ? "Draft saved on this device." : "Your browser couldn’t save this draft. Please allow local storage and try again.");
+  }
+  function create(kind: ExperienceKind = "link") { setEditing(newExperience(cafe, kind)); setSharing(null); setView("experiences"); window.scrollTo({ top: 0, behavior: "instant" }); }
+  async function publish(value: Experience) {
+    const error = validateExperience(value);
+    if (error) return error;
+    const result = await publishExperience(value);
+    if (!result.ok) return result.error;
+    setState(previous => ({ ...previous, drafts: previous.drafts.filter(experience => experience.id !== value.id) }));
+    setEditing(null); setSharing({ ...value, id: result.id, published: true }); router.refresh();
+    notify("Published. Your QR link stays the same when you update this experience.");
+    return null;
+  }
+  async function pause(value: Experience) {
+    setPending(true);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time localStorage hydration
-      if (raw) setState((s) => ({ ...s, ...JSON.parse(raw) }));
-    } catch {}
-    loaded.current = true;
-  }, []);
-
-  // Persist on change, but never before the initial hydration has run (so we
-  // don't clobber saved state with defaults on first mount).
-  useEffect(() => {
-    if (!loaded.current) return;
+      const result = await pauseExperience(value.id);
+      if (!result.ok) { notify(result.error || "Unable to pause this experience."); return; }
+      setState(previous => ({ ...previous, drafts: previous.drafts.filter(experience => experience.id !== value.id) }));
+      setSharing(null); router.refresh(); notify("Experience paused. Printed codes now show a friendly unavailable message.");
+    } catch { notify("We couldn’t pause this experience. Please try again."); }
+    finally { setPending(false); }
+  }
+  async function redeem(id: string) {
+    setPending(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {}
-  }, [state]);
-
-  const adCards = cards(prospects);
-  const invitedCount = prospects.filter((p) => p.invited).length;
-  const monthlyAdRevenue = prospects.filter((p) => p.invited).reduce((s, p) => s + p.suggestedPrice, 0);
-
-  const navItems: { id: View; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "destination", label: "QR destination" },
-    { id: "surfaces", label: "Surfaces" },
-    { id: "order", label: "Order sleeves" },
-    { id: "qr", label: "QR codes" },
-  ];
-
-  return (
-    <div>
-      {/* Demo banner */}
-      <div
-        className="rounded-2xl p-5 mb-6 text-white"
-        style={{ background: `linear-gradient(135deg, ${CAFE.gradientFrom}, ${CAFE.gradientTo})` }}
-      >
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.2em] opacity-80">Smart Sleeves · Demo</div>
-            <div className="font-serif text-2xl font-bold">{CAFE.name}</div>
-          </div>
-          <div className="text-xs opacity-90 text-right">
-            {CAFE.locations.length} locations · {CAFE.city}
-          </div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <div className="flex gap-1 border-b border-gray-200 mb-6 overflow-x-auto">
-        {navItems.map((n) => (
-          <button
-            key={n.id}
-            onClick={() => setView(n.id)}
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition ${
-              view === n.id ? "text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
-            style={view === n.id ? { borderColor: CAFE.accent, color: "#1a1a1a" } : undefined}
-          >
-            {n.label}
-          </button>
-        ))}
-      </div>
-
-      {view === "home" && (
-        <HomeView
-          destination={destination}
-          adCards={adCards}
-          linkLabel={linkLabel}
-          linkUrl={linkUrl}
-          invitedCount={invitedCount}
-          monthlyAdRevenue={monthlyAdRevenue}
-          surfaces={surfaces}
-          onChangeDestination={() => setView("destination")}
-          onSurfaces={() => setView("surfaces")}
-          onOrder={() => setView("order")}
-          onQr={() => setView("qr")}
-        />
-      )}
-
-      {view === "destination" && (
-        <DestinationView
-          destination={destination}
-          setDestination={setDestination}
-          linkLabel={linkLabel}
-          setLinkLabel={setLinkLabel}
-          linkUrl={linkUrl}
-          setLinkUrl={setLinkUrl}
-          prospects={prospects}
-          setProspects={setProspects}
-          adCards={adCards}
-          monthlyAdRevenue={monthlyAdRevenue}
-        />
-      )}
-
-      {view === "surfaces" && (
-        <SurfacesView
-          surfaces={surfaces}
-          setSurfaces={setSurfaces}
-          adCards={adCards}
-          linkLabel={linkLabel}
-          linkUrl={linkUrl}
-        />
-      )}
-
-      {view === "order" && <OrderSleeves initialDestination={destination} />}
-      {view === "qr" && <CreateQr />}
+      const result = await confirmRedemption(id);
+      notify(result.ok ? "Redemption confirmed. This is now counted separately from claims." : result.error || "Unable to confirm redemption.");
+      if (result.ok) router.refresh();
+    } catch { notify("We couldn’t confirm the redemption. Please try again."); }
+    finally { setPending(false); }
+  }
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const shareUrl = sharing ? sharing.published ? `${origin}${experiencePath(sharing.id)}` : `${origin}/demo/experience?cafe=${cafe.slug}&experience=${encodeURIComponent(JSON.stringify(sharing))}` : "";
+  function row(experience: Experience) {
+    const hasLiveVersion = liveIds.has(experience.id) && draftIds.has(experience.id);
+    return <div className="ss-experience-row" key={experience.id}><div className={`ss-type-icon ss-type-icon-${experience.kind}`}><Icon name={EXPERIENCE_KINDS[experience.kind].icon} size={19} /></div><div className="ss-row-text"><strong>{experience.name || "Untitled experience"}</strong><small>{SURFACES[experience.surface]} · {experience.location}</small></div><div className="ss-row-actions"><Badge tone={experience.published ? "green" : "neutral"}>{experience.published ? "Published" : hasLiveVersion ? "Draft changes" : liveIds.has(experience.id) ? "Paused" : demo ? "Sample / draft" : "Draft"}</Badge><Button variant="quiet" onClick={() => setEditing(experience)} aria-label={`Edit ${experience.name || "experience"}`}><Icon name="edit" size={15} /> Edit</Button>{(experience.published || demo) && <Button variant="secondary" onClick={() => setSharing(experience)}>{experience.published ? "Get QR" : "Preview QR"}<Icon name="qr" size={14} /></Button>}</div></div>;
+  }
+  const list = visible.filter(experience => (!query || `${experience.name} ${experience.location} ${experience.business}`.toLowerCase().includes(query.toLowerCase())) && (filter === "all" || filter === "offer" && experience.kind === "offer" || filter === "published" && experience.published || filter === "draft" && !experience.published));
+  return <div className="ss">
+    <a href="#workspace-main" className="ss-skip">Skip to workspace</a>
+    <aside className="ss-sidebar"><div className="ss-wordmark"><Icon name="cup" size={31} />adgyn<span style={{ color: "#c8784a" }}>.</span></div><div className="ss-brand-subtitle">Good things, closer together.</div><div className="ss-cafe-switch"><div className="ss-avatar">{cafe.name.split(" ").map(part => part[0]).slice(0, 2).join("")}</div><div><strong>{cafe.name}</strong><small>Your café workspace</small></div></div><nav className="ss-nav" aria-label="Café workspace">{NAV.map(item => <button type="button" key={item.id} aria-label={item.label} aria-current={view === item.id ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={18} /><span className="ss-nav-desktop">{item.label}</span><span className="ss-nav-mobile">{item.mobile}</span></button>)}</nav><div className="ss-sidebar-bottom"><div className="ss-sidebar-note"><strong>Little touchpoints.<br />Lasting connections.</strong>Your packaging is a place to start a conversation.</div>{hasOutreach && <Link href="/dashboard/venue/outreach"><Icon name="heart" size={15} /> Sponsor conversations</Link>}<a href="mailto:hello@adgyn.com"><Icon name="mail" size={15} /> A little help?</a>{demo ? <Link href="/login">Sign in to your café<Icon name="arrow" size={14} /></Link> : <form action="/api/auth/signout" method="post"><button type="submit" className="ss-button ss-button-quiet">Sign out</button></form>}</div></aside>
+    <div className="ss-main"><header className="ss-topbar"><div className="ss-topbar-left"><strong>{cafe.name}</strong><span>/</span><span>{NAV.find(item => item.id === view)?.label}</span></div><div className="ss-topbar-right"><Icon name="pin" size={15} /><label><span className="sr-only">Filter by location</span><select className="ss-location-filter" value={location} onChange={event => setLocation(event.target.value)}><option value="all">All locations</option>{cafe.locations.map(item => <option key={item}>{item}</option>)}</select></label><div className="ss-avatar" style={{ width: 29, height: 29, fontSize: 10 }}>MY</div></div></header>
+      {demo && <div className="ss-demo-strip"><span>Interactive demo · sample content · drafts stay on this device</span><Link href={`/demo/smart-sleeves?cafe=${cafe.slug === "gratitude" ? "nirvana" : "gratitude"}`}>Try {cafe.slug === "gratitude" ? "Nirvana Soul" : "Gratitude"}</Link></div>}
+      <main ref={contentRef} id="workspace-main" tabIndex={-1} className="ss-content">
+        {!canPublish && !demo && <div style={{ marginBottom: 25 }}><Notice>Café owners can publish experiences. You can prepare drafts, explore pricing, and export campaign content.</Notice></div>}
+        {editing ? <ExperienceEditor key={editing.id} cafe={cafe} initial={editing} demo={demo} canPublish={canPublish} onSave={saveDraft} onPublish={publish} onDraftChange={setEditing} onDiscard={() => { if (!setState(previous => ({ ...previous, drafts: previous.drafts.filter(draft => draft.id !== editing.id) }))) { notify("Your browser couldn’t discard the draft. Please try again."); return; } setEditing(null); setView("experiences"); notify("Draft discarded."); }} onBack={() => { setEditing(null); setView("experiences"); }} /> : sharing ? <>
+          <button type="button" className="ss-back" onClick={() => setSharing(null)}><Icon name="arrow" size={16} /> Back to your workspace</button><div className="ss-card ss-card-pad ss-share-panel"><div className={`ss-type-icon ss-type-icon-${sharing.kind}`}><Icon name="qr" size={23} /></div><h2>{sharing.published ? "A small code. A new connection." : "Try the customer preview."}</h2><p>{sharing.published ? "Download this QR for your printed materials. You can update the experience without reprinting it." : "This scannable code opens a sample preview. It does not publish your experience or record activity."}</p><QrCode value={shareUrl} onError={notify} /><div className="ss-share-box">{shareUrl}</div><div className="ss-button-row"><Button variant="secondary" onClick={async () => { try { await copyText(shareUrl); notify("Link copied."); } catch { notify("Copy is unavailable. Select the link above to copy it."); } }}><Icon name="copy" size={15} /> Copy link</Button><a href={sharing.published ? `${origin}${experiencePath(sharing.id, "direct")}&preview=1` : shareUrl} target="_blank" rel="noopener noreferrer" className="ss-button ss-button-secondary">Open preview<Icon name="external" size={15} /></a>{sharing.published && <Button variant="quiet" disabled={pending} onClick={() => pause(sharing)}><Icon name="pause" size={15} /> Pause</Button>}</div></div>
+        </> : <>
+          {view === "overview" && <Overview cafe={cafe} demo={demo} experiences={visible} published={published} create={create} edit={setEditing} share={setSharing} navigate={navigate} renderRow={row} />}
+          {view === "experiences" && <>
+            <div className="ss-heading"><div><div className="ss-eyebrow">One place for every touchpoint</div><h1>Your next great connection.</h1><p>Manage what customers see, wherever they discover you.</p></div><Button onClick={() => create()}><Icon name="plus" size={16} /> Create an experience</Button></div>
+            <div className="ss-toolbar"><div className="ss-search"><input aria-label="Search experiences" placeholder="Find an experience or local partner…" value={query} onChange={event => setQuery(event.target.value)} /></div><div className="ss-filter-tabs">{([ ["all", "All"], ["offer", "Offers"], ["published", "Published"], ["draft", "Drafts"] ] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div></div>
+            <div className="ss-card">{list.length ? list.map(row) : <div className="ss-empty"><Icon name="qr" size={32} /><h3>{experiences.length ? "No experiences match just yet." : "A blank canvas for good things."}</h3><p>{experiences.length ? "Try another search, location, or filter." : "Start with a link to your app or a simple neighborhood offer."}</p><Button variant="secondary" onClick={() => { if (experiences.length) { setQuery(""); setFilter("all"); setLocation("all"); } else create(); }}>{experiences.length ? "Clear filters" : "Create an experience"}</Button></div>}</div>
+            {published.length > 0 && <section className="ss-card" style={{ marginTop: 22 }}><div className="ss-card-header"><div><h3>Customer actions · all time</h3><p>Clicks are destination actions. Claims and confirmed redemptions are separate.</p></div></div>{published.map(experience => <div className="ss-experience-row" key={experience.id}><div className="ss-row-text"><strong>{experience.name}</strong><small>{experience.visits} visits · {experience.clicks} clicks · {experience.claims} claims · {experience.redemptions} confirmed redemptions</small><small>Visits by source: QR {experience.channelVisits?.qr ?? 0} · Email {experience.channelVisits?.email ?? 0} · Social {experience.channelVisits?.social ?? 0} · Direct {experience.channelVisits?.direct ?? 0}</small></div><Button variant="quiet" onClick={() => setSharing(experience)}>Get QR<Icon name="arrow" size={14} /></Button></div>)}</section>}
+            {claims.length > 0 && <section className="ss-card" style={{ marginTop: 22 }}><div className="ss-card-header"><div><h3>Confirm offer redemptions</h3><p>Only confirm after the participating business honors the customer’s offer. Latest 100 claims.</p></div></div>{claims.filter(claim => location === "all" || initialExperiences.some(experience => experience.id === claim.experienceId && experience.location === location)).map(claim => <div className="ss-claim-row" key={claim.id}><code>{claim.id.slice(0, 8).toUpperCase()}</code><div className="ss-row-text"><strong>{claim.business}</strong><small>{claim.headline}</small></div>{claim.redeemedAt ? <Badge tone="green">Confirmed</Badge> : isExpired(claim.expiresOn) ? <Badge>Expired</Badge> : <Button variant="secondary" disabled={pending} onClick={() => redeem(claim.id)}>Confirm redemption</Button>}</div>)}</section>}
+          </>}
+          {view === "sponsors" && <Sponsorship scenario={state.scenario} onChange={value => { if (!setState(previous => ({ ...previous, scenario: value }))) notify("Your browser couldn’t save these changes."); }} onOutreach={hasOutreach ? () => router.push("/dashboard/venue/outreach") : undefined} />}
+          {view === "content" && <ContentComposer cafe={cafe} experiences={experiences} draft={state.content} onChange={value => { if (!setState(previous => ({ ...previous, content: value }))) notify("Your browser couldn’t save this draft."); }} origin={origin} notify={notify} onCreate={() => create()} />}
+          {view === "sleeves" && <SleeveEstimate cafe={cafe} draft={state.sleeves} onChange={value => { if (!setState(previous => ({ ...previous, sleeves: value }))) notify("Your browser couldn’t save this estimate."); }} monthlyFee={state.scenario.monthlyFee} onFeeChange={value => { if (!setState(previous => ({ ...previous, scenario: { ...previous.scenario, monthlyFee: value } }))) notify("Your browser couldn’t save this estimate."); }} notify={notify} />}
+        </>}
+      </main>
     </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm p-5">
-      <div className="font-serif text-3xl font-bold">{value}</div>
-      <div className="text-xs uppercase tracking-wider text-gray-400 mt-1">{label}</div>
-    </div>
-  );
-}
-
-function HomeView(props: {
-  destination: QrExperience;
-  adCards: PreviewCard[];
-  linkLabel: string;
-  linkUrl: string;
-  invitedCount: number;
-  monthlyAdRevenue: number;
-  surfaces: Surface[];
-  onChangeDestination: () => void;
-  onSurfaces: () => void;
-  onOrder: () => void;
-  onQr: () => void;
-}) {
-  const exp = EXPERIENCE[props.destination];
-  const max = Math.max(...ANALYTICS.weeklyScans);
-  const liveSurfaces = props.surfaces.filter((s) => s.active);
-  const topSurfaces = [...props.surfaces].sort((a, b) => b.scans - a.scans).slice(0, 3);
-  const surfaceMax = Math.max(1, ...topSurfaces.map((s) => s.scans));
-  return (
-    <div className="grid md:grid-cols-[1fr_320px] gap-8 items-start">
-      <div>
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <Stat label="Scans" value={ANALYTICS.scans.toLocaleString()} />
-          <Stat label="Clicks" value={ANALYTICS.clicks.toLocaleString()} />
-          <Stat label="Views" value={ANALYTICS.views.toLocaleString()} />
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
-          <div className="text-xs uppercase tracking-wider text-gray-400 mb-3">Scans · last 5 weeks</div>
-          <div className="flex items-end gap-2 h-24">
-            {ANALYTICS.weeklyScans.map((v, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className="w-full rounded-t"
-                  style={{
-                    height: `${(v / max) * 100}%`,
-                    background: `linear-gradient(to top, ${CAFE.gradientTo}, ${CAFE.gradientFrom})`,
-                  }}
-                />
-                <span className="text-[10px] text-gray-400">W{i + 1}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-gray-400">Your QR currently shows</div>
-              <div className="font-serif text-xl font-bold mt-1">
-                {exp.icon} {exp.label}
-              </div>
-              <p className="text-sm text-gray-500 mt-1 max-w-md">{exp.blurb}</p>
-              {props.destination === "ads" && (
-                <p className="text-sm text-gray-500 mt-1">
-                  {props.invitedCount} advertisers · <strong>${props.monthlyAdRevenue}/mo</strong> potential
-                </p>
-              )}
-            </div>
-            <button
-              onClick={props.onChangeDestination}
-              className="text-sm font-semibold text-white px-4 py-2 rounded-lg shrink-0"
-              style={{ backgroundColor: CAFE.accent }}
-            >
-              Change
-            </button>
-          </div>
-        </div>
-
-        {/* Scans by surface — teaser into the Surfaces view */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-gray-400">Scans by surface</div>
-              <div className="text-sm text-gray-500 mt-0.5">
-                {liveSurfaces.length} live surfaces across your locations
-              </div>
-            </div>
-            <button
-              onClick={props.onSurfaces}
-              className="text-sm font-semibold shrink-0"
-              style={{ color: CAFE.accent }}
-            >
-              Manage →
-            </button>
-          </div>
-          <div className="space-y-2">
-            {topSurfaces.map((s) => (
-              <div key={s.id} className="flex items-center gap-3">
-                <div className="w-32 shrink-0 text-sm truncate text-gray-600">{s.label}</div>
-                <div className="flex-1 h-4 rounded bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded"
-                    style={{
-                      width: `${(s.scans / surfaceMax) * 100}%`,
-                      background: `linear-gradient(to right, ${CAFE.gradientFrom}, ${CAFE.gradientTo})`,
-                    }}
-                  />
-                </div>
-                <div className="w-12 text-right text-xs font-medium text-gray-500">
-                  {s.scans.toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={props.onOrder}
-            className="bg-white rounded-2xl shadow-sm p-5 text-left hover:shadow-md transition"
-          >
-            <div className="text-2xl mb-2">☕️</div>
-            <div className="font-serif font-bold">Order sleeves</div>
-            <div className="text-xs text-gray-400 mt-0.5">Design, quantity & pricing</div>
-          </button>
-          <button
-            onClick={props.onSurfaces}
-            className="bg-white rounded-2xl shadow-sm p-5 text-left hover:shadow-md transition"
-          >
-            <div className="text-2xl mb-2">🪧</div>
-            <div className="font-serif font-bold">Manage surfaces</div>
-            <div className="text-xs text-gray-400 mt-0.5">Sleeves, cups, signs & more</div>
-          </button>
-          <button
-            onClick={props.onQr}
-            className="bg-white rounded-2xl shadow-sm p-5 text-left hover:shadow-md transition"
-          >
-            <div className="text-2xl mb-2">⬛️</div>
-            <div className="font-serif font-bold">Create a QR code</div>
-            <div className="text-xs text-gray-400 mt-0.5">For signs, cups & A-frames</div>
-          </button>
-        </div>
-      </div>
-
-      <PhonePreview
-        destination={props.destination}
-        adCards={props.adCards}
-        linkLabel={props.linkLabel}
-        linkUrl={props.linkUrl}
-      />
-    </div>
-  );
-}
-
-function DestinationView(props: {
-  destination: QrExperience;
-  setDestination: (d: QrExperience) => void;
-  linkLabel: string;
-  setLinkLabel: (s: string) => void;
-  linkUrl: string;
-  setLinkUrl: (s: string) => void;
-  prospects: AdProspect[];
-  setProspects: (p: AdProspect[]) => void;
-  adCards: PreviewCard[];
-  monthlyAdRevenue: number;
-}) {
-  const setPrice = (id: string, price: number) =>
-    props.setProspects(props.prospects.map((p) => (p.id === id ? { ...p, suggestedPrice: price } : p)));
-  const toggleInvite = (id: string) =>
-    props.setProspects(props.prospects.map((p) => (p.id === id ? { ...p, invited: !p.invited } : p)));
-
-  return (
-    <div className="grid md:grid-cols-[1fr_320px] gap-8 items-start">
-      <div>
-        {/* Switcher */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {(Object.keys(EXPERIENCE) as QrExperience[]).map((e) => {
-            const active = props.destination === e;
-            return (
-              <button
-                key={e}
-                onClick={() => props.setDestination(e)}
-                className={`rounded-xl border-2 p-4 text-center transition ${
-                  active ? "border-transparent ring-2" : "border-gray-200 hover:border-gray-300"
-                }`}
-                style={active ? { boxShadow: `0 0 0 2px ${CAFE.accent}` } : undefined}
-              >
-                <div className="text-2xl mb-1">{EXPERIENCE[e].icon}</div>
-                <div className="text-sm font-semibold">{EXPERIENCE[e].label}</div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Roadmap: destination types sketched but not built yet */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className="text-xs text-gray-400 self-center mr-1">Coming soon:</span>
-          {COMING_SOON_DESTINATIONS.map((d) => (
-            <span
-              key={d.label}
-              className="inline-flex items-center gap-1 text-xs text-gray-400 rounded-full border border-dashed border-gray-300 px-2.5 py-1"
-            >
-              <span>{d.icon}</span>
-              {d.label}
-            </span>
-          ))}
-        </div>
-
-        {/* Per-destination config */}
-        {props.destination === "board" && (
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <h3 className="font-serif font-bold text-lg mb-1">Community board</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Customers land on <strong>View</strong> to browse local businesses, nonprofits & events,
-              and can tap <strong>Contribute</strong> to submit their own listing for you to approve.
-            </p>
-            <div className="text-xs uppercase tracking-wider text-gray-400 mb-2">Listings on your board</div>
-            <div className="text-sm text-gray-600">
-              7 active · a mix of businesses, nonprofits and events. Edit or approve submissions here.
-            </div>
-            <div
-              className="mt-4 rounded-xl p-3.5 text-sm"
-              style={{ backgroundColor: "#F6F2FB" }}
-            >
-              <div className="font-semibold" style={{ color: CAFE.accent }}>
-                ★ Featured listings
-              </div>
-              <p className="text-gray-600 mt-0.5 leading-snug">
-                Businesses can pay to pin their listing to the top — e.g. downtown
-                tech companies buying visibility during conferences. 1 featured now
-                (Bay Area Dev Summit). A built-in way for the board to earn its keep.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {props.destination === "ads" && (
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-serif font-bold text-lg">Invite local advertisers</h3>
-              <span className="text-sm text-gray-500">
-                <strong>${props.monthlyAdRevenue}</strong>/mo potential
-              </span>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">
-              Nearby businesses you can feature on your sleeves. Set your price and invite them.
-            </p>
-            <div className="space-y-2">
-              {props.prospects.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-sm truncate">{p.name}</div>
-                    <div className="text-xs text-gray-400">{p.category} · {p.distance}</div>
-                  </div>
-                  <div className="flex items-center gap-0.5 text-sm">
-                    <span className="text-gray-400">$</span>
-                    <input
-                      type="number"
-                      value={p.suggestedPrice}
-                      onChange={(e) => setPrice(p.id, Number(e.target.value) || 0)}
-                      className="w-16 rounded-lg border border-gray-200 px-2 py-1 text-right"
-                    />
-                    <span className="text-gray-400 text-xs">/mo</span>
-                  </div>
-                  <button
-                    onClick={() => toggleInvite(p.id)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 w-20 ${
-                      p.invited ? "bg-emerald-100 text-emerald-700" : "text-white"
-                    }`}
-                    style={p.invited ? undefined : { backgroundColor: CAFE.accent }}
-                  >
-                    {p.invited ? "Invited ✓" : "Invite"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {props.destination === "link" && (
-          <div className="bg-white rounded-2xl shadow-sm p-5">
-            <h3 className="font-serif font-bold text-lg mb-1">Custom link</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Send everyone who scans straight to one destination — your app, rewards, newsletter or any page.
-            </p>
-            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1">Label</label>
-            <input
-              value={props.linkLabel}
-              onChange={(e) => props.setLinkLabel(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm mb-3"
-            />
-            <label className="block text-xs uppercase tracking-wider text-gray-400 mb-1">URL</label>
-            <input
-              value={props.linkUrl}
-              onChange={(e) => props.setLinkUrl(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            />
-            <div className="flex flex-wrap gap-2 mt-2">
-              {LINK_PRESETS.map((p) => (
-                <button
-                  key={p.url}
-                  onClick={() => {
-                    props.setLinkLabel(p.label);
-                    props.setLinkUrl(p.url);
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <PhonePreview
-        destination={props.destination}
-        adCards={props.adCards}
-        linkLabel={props.linkLabel}
-        linkUrl={props.linkUrl}
-      />
-    </div>
-  );
+    {toast && <div className="ss-toast" role="status"><Icon name="check" size={16} /><span>{toast}</span><button type="button" onClick={() => setToast("")} aria-label="Dismiss notification"><Icon name="close" size={15} /></button></div>}
+  </div>;
 }

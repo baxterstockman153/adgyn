@@ -118,6 +118,50 @@ Venue ──< Campaign ──< Placement >── Brand
 
 ## Local Development
 
+### Café workspace and Smart Sleeves
+
+The workspace combines QR destinations and physical placements in one editor,
+with a customer preview, offer claiming, owner-confirmed redemption, a sponsorship
+scenario calculator, campaign copy/export, and downloadable sleeve estimates.
+
+- `/demo/smart-sleeves` — self-service Nirvana Soul demo; no login required.
+- `/demo/smart-sleeves?cafe=gratitude` — Gratitude-branded demo.
+- `/dashboard/venue/smart-sleeve` — authenticated workspace for enabled venues.
+- `/q/[id]` — published experience; link destinations redirect directly.
+
+Demo content is illustrative and never records customer activity. Demo and live
+drafts, cost scenarios, campaign text, and sleeve estimates are stored separately
+in the browser per café. Published experiences and customer activity use PostgreSQL.
+Existing advertising campaigns and dashboards remain available for other venues.
+Enable additional venues with `SMART_SLEEVE_VENUE_IDS`; only café owners can
+publish, pause, or confirm redemption. Public submissions and native email capture
+are not enabled.
+
+Before deploying this workspace, apply the additive migration:
+
+```bash
+npx prisma migrate status
+npx prisma migrate deploy
+npx prisma generate
+```
+
+Each printed QR uses a permanent experience URL. `channel=qr`, `email`, `social`,
+or `direct` separates tagged traffic; these tags identify the distributed link,
+not proof of a physical scan. Preview links use `preview=1` and do not record events.
+Visits and clicks deduplicate per browser session, experience, and channel over
+30 minutes, with basic bot user-agent exclusion. Claims are idempotent per
+experience and browser session. A customer claim never counts as redemption;
+an authorized café owner confirms redemption after the business honors the offer.
+Expiry dates use America/Los_Angeles, including daylight-saving changes.
+The customer session is an HTTP-only, SameSite cookie lasting 24 hours; the database
+stores its hash, not email addresses or raw IP addresses. This pilot measurement
+does not provide audited impressions or sophisticated coupon fraud protection.
+
+The editable $249/location/month platform figure and sleeve unit prices are
+discussion estimates, not accepted quotes. No payment, order, email delivery,
+or provider synchronization is performed. Campaign content exports into the
+café's existing email/social tool, with channel-specific links for published content.
+
 ```bash
 # Prerequisites: Node.js 22+, npm
 nvm use 22

@@ -68,6 +68,7 @@ model Venue {
   prospects          Prospect[]
   outreachEmails     OutreachEmail[]
   outreachReplies    OutreachReply[]
+  smartExperiences   SmartExperience[]
 
   @@map("venues")
 }
@@ -324,4 +325,49 @@ model Conversion {
   @@index([placementId])
   @@index([clickId])
   @@map("conversions")
+}
+
+model SmartExperience {
+  id        String       @id @default(uuid())
+  venueId   String       @map("venue_id")
+  config    Json
+  published Boolean      @default(true)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  venue     Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  events    SmartEvent[]
+  claims    SmartClaim[]
+
+  @@index([venueId])
+  @@map("smart_experiences")
+}
+
+model SmartEvent {
+  id           String          @id @default(uuid())
+  experienceId String          @map("experience_id")
+  kind         String
+  channel      String
+  sessionKey   String          @map("session_key")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  experience   SmartExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@index([experienceId, kind, channel, createdAt])
+  @@index([sessionKey, createdAt])
+  @@map("smart_events")
+}
+
+model SmartClaim {
+  id           String          @id @default(uuid())
+  experienceId String          @map("experience_id")
+  visitorKey   String          @map("visitor_key")
+  headline     String
+  business     String
+  expiresOn    String          @map("expires_on")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  redeemedAt   DateTime?       @map("redeemed_at")
+  experience   SmartExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@unique([experienceId, visitorKey])
+  @@index([experienceId, createdAt])
+  @@map("smart_claims")
 }
