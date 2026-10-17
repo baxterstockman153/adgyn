@@ -11,15 +11,17 @@ import { Sponsorship } from "./sponsorship";
 import { CommunityBoard } from "./community-board";
 import { ContentComposer } from "./content-composer";
 import { AddressBook } from "./address-book";
+import { Outreach } from "./outreach";
 import { SleeveEstimate } from "./sleeve-estimate";
 import { Overview } from "./overview";
 import { useWorkspace } from "./use-workspace";
 import "./workspace.css";
 
-type View = "overview" | "experiences" | "board" | "content" | "sleeves";
+type View = "overview" | "experiences" | "board" | "outreach" | "content" | "sleeves";
 const NAV: { id: View; label: string; mobile: string; icon: string }[] = [
   { id: "overview", label: "Overview", mobile: "Home", icon: "home" },
   { id: "board", label: "Community board", mobile: "Board", icon: "grid" },
+  { id: "outreach", label: "Find sponsors", mobile: "Sponsors", icon: "heart" },
   { id: "content", label: "Newsletter & posts", mobile: "Share", icon: "mail" },
   { id: "sleeves", label: "Order sleeves", mobile: "Sleeves", icon: "cup" },
 ];
@@ -121,6 +123,7 @@ export function SmartSleeveApp({ cafe, demo = false, initialExperiences = [], cl
             {claims.length > 0 && <section className="ss-card" style={{ marginTop: 22 }}><div className="ss-card-header"><div><h3>Confirm offer redemptions</h3><p>Only confirm after the participating business honors the customer’s offer. Latest 100 claims.</p></div></div>{claims.filter(claim => location === "all" || initialExperiences.some(experience => experience.id === claim.experienceId && experience.location === location)).map(claim => <div className="ss-claim-row" key={claim.id}><code>{claim.id.slice(0, 8).toUpperCase()}</code><div className="ss-row-text"><strong>{claim.business}</strong><small>{claim.headline}</small></div>{claim.redeemedAt ? <Badge tone="green">Confirmed</Badge> : isExpired(claim.expiresOn) ? <Badge>Expired</Badge> : <Button variant="secondary" disabled={pending} onClick={() => redeem(claim.id)}>Confirm redemption</Button>}</div>)}</section>}
           </>}
           {view === "board" && <CommunityBoard cafe={cafe} boards={boards} create={create} renderRow={row} />}
+          {view === "outreach" && <Outreach cafe={cafe} prospects={state.outreach} onUpdate={next => { if (!setState(previous => ({ ...previous, outreach: next }))) notify("Your browser couldn’t save this change."); }} notify={notify} />}
           {view === "content" && <>
             <div className="ss-subtabs">
               <button type="button" aria-pressed={newsTab === "compose"} onClick={() => setNewsTab("compose")}>Compose</button>
