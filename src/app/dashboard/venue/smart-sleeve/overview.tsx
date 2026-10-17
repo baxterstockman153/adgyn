@@ -17,6 +17,29 @@ export function Overview({ cafe, demo, experiences, published, create, edit, sha
   ];
   return <>
     <div className="ss-heading"><div><div className="ss-eyebrow">Overview</div><h1>Your Smart Sleeves</h1><p>What your QR codes show, who’s sponsoring, and how it’s doing — in one place.</p></div><Button onClick={() => create()}><Icon name="plus" size={16} /> New QR code</Button></div>
+    <section className="ss-card" style={{ marginBottom: 22 }}>
+      <div className="ss-card-header"><div><h3>Latest from your neighborhood</h3><p>Local businesses on Adgyn, staying in touch.</p></div><Badge tone="green">Adgyn Local</Badge></div>
+      <div className="ss-experience-row">
+        <div className="ss-type-icon ss-type-icon-offer"><Icon name="heart" size={19} /></div>
+        <div className="ss-row-text"><strong>Bean &amp; Gone · 0.4 mi</strong><small>“Anyone up for a neighborhood block party in ~3 weeks? Reply if your café would be in.”</small><small style={{ color: "#b2a594" }}>2 hours ago · 4 cafés interested</small></div>
+        <Button variant="secondary">Reply</Button>
+      </div>
+      <div className="ss-experience-row">
+        <div className="ss-type-icon ss-type-icon-offer"><Icon name="ticket" size={19} /></div>
+        <div className="ss-row-text"><strong>Gabby’s Good Dogs</strong><small>Weekend special: 2-for-1 gourmet dogs, Sat–Sun. Want to cross-post it to your board?</small><small style={{ color: "#b2a594" }}>5 hours ago</small></div>
+        <Button variant="quiet">Add to board</Button>
+      </div>
+      <div className="ss-experience-row">
+        <div className="ss-type-icon ss-type-icon-link"><Icon name="leaf" size={19} /></div>
+        <div className="ss-row-text"><strong>Breathe Together</strong><small>Running a “first class free” offer for neighbors this month.</small><small style={{ color: "#b2a594" }}>Yesterday</small></div>
+        <Button variant="quiet">See</Button>
+      </div>
+      <div className="ss-experience-row">
+        <div className="ss-type-icon ss-type-icon-board"><Icon name="plus" size={19} /></div>
+        <div className="ss-row-text"><strong>Recycle Book Store</strong><small>Just joined Adgyn Local near you.</small><small style={{ color: "#b2a594" }}>2 days ago</small></div>
+        <Button variant="quiet">Say hi</Button>
+      </div>
+    </section>
     <div className="ss-dashboard-grid"><div className="ss-stack">
       <section className="ss-hero"><div><div className="ss-eyebrow">Get started</div><h2>Point your QR at something useful.</h2><p>Open your app, share a local offer, or feature a sponsor — you choose what a scan does.</p><Button onClick={() => create(cafe.slug === "gratitude" ? "offer" : "link")}>Create a QR code<Icon name="arrow" size={15} /></Button></div><div className="ss-sleeve-art" aria-hidden="true"><div className="ss-paper-cup"><div className="ss-paper-sleeve"><Icon name="qr" size={30} /><span>good things, nearby.</span></div></div></div></section>
       <div><div className="ss-stats"><div className="ss-stat"><span>Published QR codes</span><strong>{published.length}</strong><small>{demo ? "Nothing is live in this demo" : "Ready for your customers"}</small></div><div className="ss-stat"><span>Customer visits</span><strong>{total("visits")}</strong><small>{demo ? "No sample activity included" : "All channels · all time"}</small></div><div className="ss-stat"><span>Offers claimed</span><strong>{total("claims")}</strong><small>{total("redemptions")} confirmed redemptions</small></div></div><p className="ss-stat-note">{demo ? "These counts start at zero. Sample content never appears as customer results." : "Visits include tagged QR, email, social, and direct traffic. Repeat events within 30 minutes are counted once per session and channel."}</p></div>
