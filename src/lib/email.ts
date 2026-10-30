@@ -136,3 +136,34 @@ export async function sendOutreachEmail({
     return { sent: false, error: e instanceof Error ? e.message : "send failed" };
   }
 }
+
+// Plain-text transactional email from the default Adgyn sender (Smart Sleeves
+// sponsor invites, sleeve order notices).
+export async function sendTextEmail({
+  to,
+  subject,
+  text,
+  replyTo,
+}: {
+  to: string | string[];
+  subject: string;
+  text: string;
+  replyTo?: string;
+}): Promise<SendResult> {
+  if (!resend) {
+    return { sent: false, error: "RESEND_API_KEY not configured" };
+  }
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject,
+      text,
+      ...(replyTo ? { replyTo } : {}),
+    });
+    if (error) return { sent: false, error: error.message };
+    return { sent: true };
+  } catch (e) {
+    return { sent: false, error: e instanceof Error ? e.message : "send failed" };
+  }
+}

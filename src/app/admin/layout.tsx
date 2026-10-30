@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/admin/venues", label: "Venues", icon: "🏪" },
   { href: "/admin/campaigns", label: "Campaigns", icon: "📋" },
   { href: "/admin/brands", label: "Brands", icon: "🏷️" },
+  { href: "/admin/sleeve-orders", label: "Sleeve orders", icon: "☕" },
   { href: "/admin/prospects", label: "Prospects", icon: "🎯" },
   { href: "/admin/outreach-replies", label: "Replies", icon: "💬" },
   { href: "/admin/users", label: "Users", icon: "👤" },

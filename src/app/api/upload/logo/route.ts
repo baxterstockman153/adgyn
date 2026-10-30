@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { resolveJoinToken } from "@/app/join/[token]/resolve";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -16,19 +17,24 @@ const EXT_BY_TYPE: Record<string, string> = {
 };
 
 // POST /api/upload/logo  (multipart form-data, field "file")
-// Auth-gated: only a logged-in user can upload. Stores the image in the public
+// Auth-gated: a logged-in user, or a business holding a valid Community Board
+// invite token, can upload. Stores the image in the public
 // `logos` bucket via the service role and returns its public URL. Saving that
 // URL onto a brand/placement is done separately by the profile form.
 export async function POST(request: NextRequest) {
+  const form = await request.formData();
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
+  // A business completing a Community Board invite has no account; a valid
+  // invite token stands in for sign-in.
+  const joinToken = form.get("joinToken");
+  const invited = !user && typeof joinToken === "string" && !!(await resolveJoinToken(joinToken));
+  if (!user && !invited) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });

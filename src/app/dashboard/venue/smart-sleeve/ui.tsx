@@ -24,6 +24,12 @@ const paths: Record<string, ReactNode> = {
   edit: <><path d="m15 5 4 4M4 20l5-1L21 7a2.8 2.8 0 0 0-4-4L5 15Zm0 0h16" /></>,
   leaf: <><path d="M20 3C9 2 2 6 5 15s16 6 15-12ZM5 20 16 9" /></>,
   pause: <><path d="M8 5v14M16 5v14" /></>,
+  play: <path d="M7 4v16l13-8Z" />,
+  settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></>,
+  chart: <><path d="M3 3v18h18" /><path d="M7 15v2m4-6v6m4-9v9m4-12v12" /></>,
+  users: <><circle cx="9" cy="8" r="4" /><path d="M2 21v-1a6 6 0 0 1 12 0v1m2-17a4 4 0 0 1 0 8m6 9v-1a6 6 0 0 0-4-5.6" /></>,
+  archive: <><rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9m-9 4h4" /></>,
+  link: <><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></>,
 };
 
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
@@ -40,6 +46,25 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 
 export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "green" | "amber" }) {
   return <span className={`ss-badge ss-badge-${tone}`}>{children}</span>;
+}
+
+export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(onClose, 4500);
+    return () => clearTimeout(timer);
+  }, [message, onClose]);
+  if (!message) return null;
+  return <div className="ss-toast" role="status">{message}<button type="button" aria-label="Dismiss notification" onClick={onClose}><Icon name="close" size={14} /></button></div>;
+}
+
+export function Modal({ title, description, onClose, children }: { title: string; description?: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return <div className="ss-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><div className="ss-modal" role="dialog" aria-modal="true" aria-label={title}><div className="ss-modal-header"><div><h2>{title}</h2>{description && <p>{description}</p>}</div><button type="button" className="ss-modal-close" aria-label="Close" onClick={onClose}><Icon name="close" size={16} /></button></div>{children}</div></div>;
 }
 
 export function Notice({ children }: { children: ReactNode }) {
@@ -60,7 +85,7 @@ export async function copyText(content: string) {
   await navigator.clipboard.writeText(content);
 }
 
-export function QrCode({ value, label = "QR code", onError }: { value: string; label?: string; onError?: (message: string) => void }) {
+export function QrCode({ value, label = "QR code", filename = "adgyn-qr", onError }: { value: string; label?: string; filename?: string; onError?: (message: string) => void }) {
   const [result, setResult] = useState<{ value: string; image: string } | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -75,11 +100,11 @@ export function QrCode({ value, label = "QR code", onError }: { value: string; l
     try {
       if (format === "svg") {
         const encoder = await import("qrcode");
-        downloadText("adgyn-qr.svg", await encoder.toString(value, { type: "svg", margin: 4, errorCorrectionLevel: "M" }), "image/svg+xml");
+        downloadText(`${filename}.svg`, await encoder.toString(value, { type: "svg", margin: 4, errorCorrectionLevel: "M" }), "image/svg+xml");
       } else if (image) {
         const anchor = document.createElement("a");
         anchor.href = image;
-        anchor.download = "adgyn-qr.png";
+        anchor.download = `${filename}.png`;
         anchor.click();
       }
     } catch {

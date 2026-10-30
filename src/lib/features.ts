@@ -70,8 +70,15 @@ export function outreachSendEnabled(venueId: string): boolean {
 // Mirrors the Resend free-tier daily ceiling and acts as an anti-abuse guard.
 export const OUTREACH_DAILY_SEND_LIMIT = 100;
 
+/**
+ * Cafés on the Smart Sleeves workspace (campaigns, QR codes, Community Board,
+ * sleeve orders). Invite-only during the pilot: add a venue ID here, or via
+ * the SMART_SLEEVE_VENUE_IDS env var (comma-separated). Enabled venues land on
+ * the workspace instead of the original campaign dashboard.
+ */
 const SMART_SLEEVE_VENUES = new Set<string>([
-  "480a5c1f-bb7f-4944-a885-536b8f3aaacd",
+  "480a5c1f-bb7f-4944-a885-536b8f3aaacd", // Nirvana Soul (demo)
+  "2de087bf-f2af-4afe-aa7c-2ec18fb15d0d", // Gratitude Coffee Bar (pilot)
 ]);
 
 export function smartSleeveEnabled(venueId: string): boolean {
