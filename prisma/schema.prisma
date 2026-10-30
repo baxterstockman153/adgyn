@@ -52,6 +52,14 @@ model Venue {
   logoUrl            String?    @map("logo_url")
   websiteUrl         String?    @map("website_url")
   address            String?
+  // Structured business address (Smart Sleeves settings). Also the default
+  // ship-to for sleeve orders. `address` above is the legacy one-line field.
+  street             String?
+  suite              String?
+  city               String?
+  state              String?
+  zip                String?
+  iconUrl            String?    @map("icon_url")
   fallbackMessage    String     @default("Check back soon!") @map("fallback_message")
   lastOutreachOpenAt DateTime?  @map("last_outreach_open_at")
   // Per-host outreach sender. `outreachFromEmail` must be an @adgyn.com address
@@ -69,6 +77,9 @@ model Venue {
   outreachEmails     OutreachEmail[]
   outreachReplies    OutreachReply[]
   smartExperiences   SmartExperience[]
+  smartContacts      SmartContact[]
+  smartSponsors      SmartSponsor[]
+  sleeveOrders       SleeveOrder[]
 
   @@map("venues")
 }
@@ -327,19 +338,47 @@ model Conversion {
   @@map("conversions")
 }
 
+// A Smart Sleeves campaign. `config` holds what customers see (kind + content,
+// see `Experience` in src/lib/smart-sleeves.ts). Status: draft until
+// `launchedAt` is set, then `published` toggles active/paused; `archivedAt`
+// hides it.
 model SmartExperience {
-  id        String       @id @default(uuid())
-  venueId   String       @map("venue_id")
-  config    Json
-  published Boolean      @default(true)
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-  venue     Venue        @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  events    SmartEvent[]
-  claims    SmartClaim[]
+  id          String         @id @default(uuid())
+  venueId     String         @map("venue_id")
+  config      Json
+  published   Boolean        @default(true)
+  launchedAt  DateTime?      @map("launched_at")
+  archivedAt  DateTime?      @map("archived_at")
+  inviteToken String         @unique @default(dbgenerated("(gen_random_uuid())::text")) @map("invite_token")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  venue       Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  events      SmartEvent[]
+  claims      SmartClaim[]
+  qrCodes     SmartQrCode[]
+  contacts    SmartContact[]
+  sponsors    SmartSponsor[]
+  orders      SleeveOrder[]
 
   @@index([venueId])
   @@map("smart_experiences")
+}
+
+// One printed/placed QR code. A campaign has several (sleeve, A-frame, Wi-Fi
+// sign…) so each placement is tracked separately. Scans hit /q/<qr id>.
+model SmartQrCode {
+  id           String          @id @default(uuid())
+  experienceId String          @map("experience_id")
+  name         String
+  placement    String
+  label        String          @default("")
+  archivedAt   DateTime?       @map("archived_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  experience   SmartExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  events       SmartEvent[]
+
+  @@index([experienceId])
+  @@map("smart_qr_codes")
 }
 
 model SmartEvent {
@@ -348,11 +387,14 @@ model SmartEvent {
   kind         String
   channel      String
   sessionKey   String          @map("session_key")
+  qrCodeId     String?         @map("qr_code_id")
   createdAt    DateTime        @default(now()) @map("created_at")
   experience   SmartExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+  qrCode       SmartQrCode?    @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
 
   @@index([experienceId, kind, channel, createdAt])
   @@index([sessionKey, createdAt])
+  @@index([qrCodeId])
   @@map("smart_events")
 }
 
@@ -370,4 +412,72 @@ model SmartClaim {
   @@unique([experienceId, visitorKey])
   @@index([experienceId, createdAt])
   @@map("smart_claims")
+}
+
+// A customer who signed up through a newsletter or loyalty campaign.
+model SmartContact {
+  id           String           @id @default(uuid())
+  venueId      String           @map("venue_id")
+  experienceId String?          @map("experience_id")
+  name         String           @default("")
+  email        String
+  phone        String           @default("")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  venue        Venue            @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  experience   SmartExperience? @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+
+  @@unique([venueId, email])
+  @@index([experienceId])
+  @@map("smart_contacts")
+}
+
+// A local business on a campaign's Community Board. Created by the café
+// ("invited") or by the business through the campaign invite link
+// ("requested"); goes live once the café approves it. No Stripe in V1 — the
+// café marks a sponsorship paid by hand. `priceCents` 0 = free placement.
+model SmartSponsor {
+  id           String          @id @default(uuid())
+  venueId      String          @map("venue_id")
+  experienceId String          @map("experience_id")
+  token        String          @unique @default(dbgenerated("(gen_random_uuid())::text"))
+  status       String          @default("invited")
+  businessName String          @map("business_name")
+  email        String
+  priceCents   Int             @default(0) @map("price_cents")
+  offer        String          @default("")
+  url          String          @default("")
+  logoUrl      String?         @map("logo_url")
+  paidAt       DateTime?       @map("paid_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  venue        Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  experience   SmartExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@index([experienceId])
+  @@map("smart_sponsors")
+}
+
+// A sleeve order request. No online payment in V1: the Adgyn team is emailed,
+// invoices the café, and moves `status` along from /admin/sleeve-orders.
+model SleeveOrder {
+  id            String          @id @default(uuid())
+  venueId       String          @map("venue_id")
+  experienceId  String          @map("experience_id")
+  quantity      Int
+  size          String
+  design        String
+  instructions  String          @default("")
+  subtotalCents Int             @map("subtotal_cents")
+  shippingCents Int             @map("shipping_cents")
+  taxCents      Int             @map("tax_cents")
+  totalCents    Int             @map("total_cents")
+  shipTo        String          @map("ship_to")
+  status        String          @default("requested")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  venue         Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  experience    SmartExperience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@map("sleeve_orders")
 }

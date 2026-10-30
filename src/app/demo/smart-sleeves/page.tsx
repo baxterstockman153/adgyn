@@ -1,10 +1,9 @@
-import type { Metadata } from "next";
-import { GRATITUDE, NIRVANA } from "@/lib/smart-sleeves";
-import { SmartSleeveApp } from "@/app/dashboard/venue/smart-sleeve/smart-sleeve-client";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Explore your café workspace · Adgyn", robots: { index: false, follow: false } };
+// The pitch demo now lives in the Magic Patterns prototype; keep old links working.
+const PROTOTYPE = "https://project-campaigns-dashboard-268.magicpatterns.app/";
 
 export default async function DemoPage({ searchParams }: { searchParams: Promise<{ cafe?: string }> }) {
   const { cafe } = await searchParams;
-  return <SmartSleeveApp key={cafe === "gratitude" ? "gratitude" : "nirvana"} cafe={cafe === "gratitude" ? GRATITUDE : NIRVANA} demo />;
+  redirect(`${PROTOTYPE}?cafe=${encodeURIComponent(cafe === "gratitude" ? "Gratitude Coffee Bar" : cafe || "Gratitude Coffee Bar")}`);
 }

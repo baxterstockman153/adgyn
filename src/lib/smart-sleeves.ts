@@ -1,48 +1,61 @@
-export type ExperienceKind = "link" | "offer" | "board" | "ads";
-export type SurfaceKind = "sleeve" | "tabletop" | "aframe" | "bag" | "window" | "cup";
+// Smart Sleeves: shared (client + server) types and helpers.
+//
+// A campaign is a `SmartExperience` row. Its `config` JSON is an `Experience`:
+// what customers see when they scan any of the campaign's QR codes.
+
+export type ExperienceKind = "board" | "link" | "offer" | "newsletter" | "loyalty";
+export type Placement = "sleeve" | "signage" | "tabletop" | "window" | "counter" | "menu" | "bag" | "wifi" | "other";
 export type Channel = "qr" | "email" | "social" | "direct";
+export type CampaignStatus = "draft" | "active" | "paused" | "ended" | "archived";
 
 export type Cafe = {
   id: string;
   name: string;
   slug: string;
-  locations: string[];
-  appUrl: string;
   accent: string;
+  logoUrl?: string | null;
 };
 
+// A café-curated Community Board listing (events, nonprofits, friends of the
+// café). Paying/invited businesses are `SmartSponsor` rows, not listings.
 export type Listing = {
   id: string;
   name: string;
   description: string;
   url: string;
-  category: "Business" | "Event" | "Nonprofit" | "Sponsor";
+  category: "Business" | "Event" | "Nonprofit";
 };
 
 export type Experience = {
   id: string;
   name: string;
   kind: ExperienceKind;
-  surface: SurfaceKind;
   location: string;
-  url: string;
+  endsOn: string; // "" = runs until you stop it
   headline: string;
+  message: string;
+  buttonLabel: string;
+  url: string;
+  // Smart Coupon
   business: string;
   terms: string;
   expiresOn: string;
   code: string;
+  // Newsletter Signup
+  incentive: string;
+  // Loyalty Program
+  reward: string;
+  stampsNeeded: number;
+  // Community Board
   entries: Listing[];
-  published: boolean;
-  visits: number;
-  clicks: number;
-  claims: number;
-  redemptions: number;
-  channelVisits?: Partial<Record<Channel, number>>;
+  suggestedPrice: number; // dollars, shown on the business invite page
 };
+
+// What the customer page needs to know about an approved Community Board sponsor.
+export type PublicSponsor = { id: string; name: string; offer: string; url: string; logoUrl: string | null };
 
 export type Claim = {
   id: string;
-  experienceId: string;
   headline: string;
   business: string;
   expiresOn: string;
@@ -50,87 +63,63 @@ export type Claim = {
   redeemedAt: string | null;
 };
 
-export type ScenarioSponsor = { id: string; name: string; amount: number; included: boolean };
-export type Scenario = {
-  sponsors: ScenarioSponsor[];
-  months: number;
-  monthlyFee: number;
-  packaging: number;
-  shipping: number;
-  processing: number;
-  other: number;
-  costsComplete: boolean;
+export const EXPERIENCE_KINDS: Record<ExperienceKind, { label: string; description: string; icon: string; action: string }> = {
+  board: { label: "Community Board", description: "Feature offers from neighborhood businesses that sponsor your sleeves.", icon: "grid", action: "Sponsor clicks" },
+  link: { label: "App / Website Redirect", description: "Send customers straight to your app download or website.", icon: "arrow", action: "Link opens" },
+  offer: { label: "Smart Coupon", description: "Discounts customers save to their phone, with every redemption tracked.", icon: "ticket", action: "Coupons claimed" },
+  newsletter: { label: "Newsletter Signup", description: "Grow your email list with a quick, friendly signup.", icon: "mail", action: "Signups" },
+  loyalty: { label: "Loyalty Program", description: "Invite regulars to join your rewards list.", icon: "heart", action: "Members joined" },
 };
 
-export const EXPERIENCE_KINDS: Record<ExperienceKind, { label: string; description: string; icon: string }> = {
-  link: { label: "Open a link", description: "Your ordering app, rewards, or existing signup page.", icon: "arrow" },
-  offer: { label: "Share an offer", description: "Give customers a clear reason to scan and visit.", icon: "ticket" },
-  board: { label: "Community board", description: "A curated collection of local businesses and events.", icon: "grid" },
-  ads: { label: "Feature sponsors", description: "Give your approved local partners a place to shine.", icon: "heart" },
+export const PLACEMENTS: Record<Placement, string> = {
+  sleeve: "Cup sleeves", signage: "In-store signage", tabletop: "Tabletop", window: "Window decal",
+  counter: "Counter card", menu: "Menu", bag: "Takeout bags", wifi: "Wi-Fi sign", other: "Other",
 };
 
-export const SURFACES: Record<SurfaceKind, string> = {
-  sleeve: "Coffee sleeves", tabletop: "Tabletop", aframe: "A-frame sign", bag: "Bags", window: "Window", cup: "Cups",
-};
+export const SLEEVE_DESIGNS = [
+  { id: "Classic Kraft", description: "Natural kraft, espresso ink", background: "#c9a77c", color: "#2b1d14" },
+  { id: "Espresso Band", description: "Dark band, caramel accents", background: "#2b1d14", color: "#e0a675" },
+  { id: "Cream Minimal", description: "Light and airy, quiet type", background: "#f4ece0", color: "#5c4a3a" },
+] as const;
+export const SLEEVE_SIZES = [
+  { id: "12 oz", description: "Fits 10–12 oz cups" },
+  { id: "16 oz", description: "Fits 16–20 oz cups" },
+] as const;
+export const SLEEVE_TIERS = [
+  { quantity: 500, unitPrice: 0.42 },
+  { quantity: 1000, unitPrice: 0.36 },
+  { quantity: 2500, unitPrice: 0.29 },
+  { quantity: 5000, unitPrice: 0.24 },
+] as const;
+const SHIPPING = 24;
+const TAX_RATE = 0.0875;
 
-export const NIRVANA: Cafe = {
-  id: "nirvana-demo", name: "Nirvana Soul", slug: "nirvana-soul", accent: "#8a4172",
-  appUrl: "https://www.nirvanasoulcoffee.com/app",
-  locations: ["Downtown San Jose", "Hotel De Anza", "SJSU Library", "Cupertino", "San Francisco"],
-};
-
-export const GRATITUDE: Cafe = {
-  id: "gratitude-demo", name: "Gratitude Coffee Bar", slug: "gratitude", accent: "#2f5d4c",
-  appUrl: "https://orderatgratitude.square.site/", locations: ["Concord"],
-};
-
-export function newExperience(cafe: Cafe, kind: ExperienceKind = "link"): Experience {
-  return {
-    id: crypto.randomUUID(), name: "", kind, surface: "sleeve", location: cafe.locations[0],
-    url: cafe.appUrl, headline: "", business: cafe.name, terms: "", expiresOn: "", code: "",
-    entries: [], published: false, visits: 0, clicks: 0, claims: 0, redemptions: 0,
-  };
+export function sleeveQuote(quantity: number) {
+  const tier = SLEEVE_TIERS.find(item => item.quantity === quantity) ?? SLEEVE_TIERS[1];
+  const cents = (dollars: number) => Math.round(dollars * 100);
+  const subtotal = cents(tier.quantity * tier.unitPrice);
+  const shipping = cents(SHIPPING);
+  const tax = Math.round(subtotal * TAX_RATE);
+  return { quantity: tier.quantity, unitPrice: tier.unitPrice, subtotal, shipping, tax, total: subtotal + shipping + tax };
 }
 
-export function sampleExperiences(cafe: Cafe): Experience[] {
-  const base = {
-    surface: "sleeve" as const, location: cafe.locations[0], url: cafe.appUrl,
-    terms: "Sample offer only. Not valid for redemption.", expiresOn: "2027-12-31", code: "NEIGHBORS",
-    entries: [], published: false, visits: 0, clicks: 0, claims: 0, redemptions: 0,
-  };
-  return [
-    { ...base, id: "sample-app", name: "Order ahead", kind: "link", surface: "aframe", headline: "Your next coffee, one tap away.", business: cafe.name },
-    { ...base, id: "sample-offer", name: "A little something for our neighbors", kind: "offer", headline: "Enjoy 15% off your first visit", business: "Your local partner" },
-    { ...base, id: "sample-board", name: "Good things in the neighborhood", kind: "board", surface: "tabletop", headline: "Meet your neighborhood.", business: cafe.name,
-      entries: [
-        { id: "sample-event", name: "Friday community night", category: "Event", description: "A sample listing for your next neighborhood get-together.", url: "" },
-        { id: "sample-nonprofit", name: "A local cause you love", category: "Nonprofit", description: "Make room for the organizations making a difference.", url: "" },
-      ],
-    },
-  ];
-}
+export const ORDER_STATUSES: Record<string, string> = {
+  requested: "Order received", in_production: "In production", shipped: "Shipped", delivered: "Delivered", canceled: "Canceled",
+};
 
-export function initialScenario(): Scenario {
-  return {
-    sponsors: [
-      { id: "scenario-1", name: "Local partner 1", amount: 250, included: true },
-      { id: "scenario-2", name: "Local partner 2", amount: 250, included: true },
-      { id: "scenario-3", name: "Local partner 3", amount: 250, included: false },
-    ],
-    months: 1, monthlyFee: 249, packaging: 0, shipping: 0, processing: 0, other: 0, costsComplete: false,
+export function newExperience(kind: ExperienceKind, cafeName: string, location = ""): Experience {
+  const base: Experience = {
+    id: "", name: "", kind, location, endsOn: "", headline: "", message: "", buttonLabel: "", url: "",
+    business: cafeName, terms: "", expiresOn: "", code: "", incentive: "", reward: "", stampsNeeded: 10,
+    entries: [], suggestedPrice: 125,
   };
-}
-
-export function calculateScenario(scenario: Scenario) {
-  const months = Math.max(1, Math.min(12, Number(scenario.months) || 1));
-  const fee = Math.max(0, Number(scenario.monthlyFee) || 0);
-  const included = scenario.sponsors.filter(sponsor => sponsor.included);
-  const income = included.reduce((total, sponsor) => total + Math.max(0, Number(sponsor.amount) || 0), 0);
-  const subscription = months * fee;
-  const otherCosts = [scenario.packaging, scenario.shipping, scenario.processing, scenario.other]
-    .reduce((total, value) => total + Math.max(0, Number(value) || 0), 0);
-  const average = included.length ? income / included.length : 0;
-  return { months, income, subscription, otherCosts, remaining: income - subscription - otherCosts, threshold: average > 0 ? Math.ceil((subscription + otherCosts) / average) : null };
+  switch (kind) {
+    case "board": return { ...base, headline: "Your neighbors are saving you a seat", message: "A few local favorites, picked by us.", buttonLabel: "See local offers" };
+    case "link": return { ...base, headline: "Order ahead, skip the line", message: "Your next coffee, one tap away.", buttonLabel: "Download the app" };
+    case "offer": return { ...base, headline: "A little thank-you from us", message: "$1 off your next latte", terms: "Show this screen at the register to redeem. One per guest.", code: "THANKYOU" };
+    case "newsletter": return { ...base, headline: "Be the first to know", message: "New drinks, events, and neighborhood news. No spam.", buttonLabel: "Sign me up" };
+    case "loyalty": return { ...base, headline: "Every cup counts", message: "Join our regulars list and we’ll keep track of your visits.", reward: "10th drink free", buttonLabel: "Join" };
+  }
 }
 
 export function validUrl(value: string): boolean {
@@ -142,53 +131,94 @@ export function validUrl(value: string): boolean {
   }
 }
 
-export function isExpired(expiresOn: string, now = Date.now()): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresOn)) return true;
-  const parsed = new Date(`${expiresOn}T12:00:00Z`);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== expiresOn) return true;
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
-  const current = ["year", "month", "day"].map(type => parts.find(part => part.type === type)?.value).join("-");
-  return current > expiresOn;
+export function validEmail(value: string): boolean {
+  return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function pacificToday(now: number): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  return ["year", "month", "day"].map(type => parts.find(part => part.type === type)?.value).join("-");
+}
+
+function validDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+/** True once the Pacific-time date has passed `date` (inclusive end date). Invalid dates count as expired. */
+export function isExpired(date: string, now = Date.now()): boolean {
+  return !validDate(date) || pacificToday(now) > date;
+}
+
+export function campaignStatus(record: { published: boolean; launchedAt: Date | string | null; archivedAt: Date | string | null }, experience: Pick<Experience, "endsOn">): CampaignStatus {
+  if (record.archivedAt) return "archived";
+  if (!record.launchedAt) return "draft";
+  if (experience.endsOn && isExpired(experience.endsOn)) return "ended";
+  return record.published ? "active" : "paused";
+}
+
+export const STATUS_LABELS: Record<CampaignStatus, string> = { draft: "Draft", active: "Active", paused: "Paused", ended: "Ended", archived: "Archived" };
+
+/** Returns an error message, or null when the campaign is ready to go live. */
 export function validateExperience(value: Experience): string | null {
-  if (!value.name.trim()) return "Give this experience a name so you can find it later.";
-  if (value.name.length > 100 || value.headline.length > 200 || value.business.length > 100 || value.terms.length > 1500 || value.code.length > 40 || value.location.length > 120) return "Please shorten the text before publishing.";
-  if (!value.location.trim()) return "Choose a location.";
-  if (!(value.kind in EXPERIENCE_KINDS) || !(value.surface in SURFACES)) return "Choose an experience and a placement.";
-  if (value.kind === "link" && !validUrl(value.url)) return "Enter a full website address, starting with https://.";
-  if (value.kind === "offer") {
-    if (!value.headline.trim() || !value.business.trim() || !value.terms.trim()) return "Add the offer, participating business, and terms.";
-    if (isExpired(value.expiresOn)) return "Choose an expiry date that has not passed. Dates use Pacific time.";
+  if (!value.name.trim()) return "Give your campaign a name so you can find it later.";
+  if (value.name.length > 100 || value.headline.length > 200 || value.message.length > 500 || value.buttonLabel.length > 40 || value.business.length > 100 || value.terms.length > 1500 || value.code.length > 40 || value.location.length > 120 || value.incentive.length > 200 || value.reward.length > 120) return "Please shorten the text before saving.";
+  if (!(value.kind in EXPERIENCE_KINDS)) return "Choose what customers should experience.";
+  if (!value.headline.trim()) return "Add a headline.";
+  if (value.endsOn && !validDate(value.endsOn)) return "Choose a valid end date.";
+  if (value.kind === "link") {
+    if (!validUrl(value.url)) return "Enter a full website address, starting with https://.";
+    if (!value.buttonLabel.trim()) return "Add a button label.";
   }
-  if (value.kind === "board" || value.kind === "ads") {
-    if (!value.entries.length || value.entries.length > 12) return "Add between one and twelve approved listings.";
-    if (value.entries.some(entry => !entry.name.trim() || !entry.description.trim() || entry.name.length > 100 || entry.description.length > 400 || !validUrl(entry.url))) return "Each listing needs a name, description, and full website address.";
+  if (value.kind === "offer") {
+    if (!value.message.trim() || !value.business.trim() || !value.terms.trim()) return "Add the offer, who honors it, and how to redeem it.";
+    if (value.expiresOn && isExpired(value.expiresOn)) return "Choose an offer end date that hasn’t passed. Dates use Pacific time.";
+  }
+  if ((value.kind === "newsletter" || value.kind === "loyalty") && !value.buttonLabel.trim()) return "Add a button label.";
+  if (value.kind === "loyalty" && !value.reward.trim()) return "Add the reward members are working toward.";
+  if (value.kind === "board") {
+    if (value.entries.length > 12) return "A board can carry up to twelve of your own listings.";
+    if (value.entries.some(entry => !entry.name.trim() || entry.name.length > 100 || entry.description.length > 400 || (entry.url && !validUrl(entry.url)))) return "Each listing needs a name, and any link must be a full website address.";
+    if (!Number.isFinite(value.suggestedPrice) || value.suggestedPrice < 0 || value.suggestedPrice > 100000) return "Enter a valid suggested sponsorship.";
   }
   return null;
 }
 
-export function parseExperience(input: unknown): Experience | null {
+const STRING_FIELDS = ["name", "location", "endsOn", "headline", "message", "buttonLabel", "url", "business", "terms", "expiresOn", "code", "incentive", "reward"] as const;
+
+/** Reads a stored or submitted config. Tolerates older configs (missing fields, the retired "ads" kind). */
+export function parseExperience(input: unknown, id = ""): Experience | null {
   if (!input || typeof input !== "object") return null;
   const value = input as Record<string, unknown>;
-  if (!["id", "name", "kind", "surface", "location", "url", "headline", "business", "terms", "expiresOn", "code"].every(key => typeof value[key] === "string")) return null;
-  if (!Object.hasOwn(EXPERIENCE_KINDS, value.kind as string) || !Object.hasOwn(SURFACES, value.surface as string)) return null;
-  if (!Array.isArray(value.entries) || value.entries.length > 12 || value.entries.some(entry => !entry || typeof entry !== "object" || !["id", "name", "description", "url", "category"].every(key => typeof entry[key] === "string") || !["Business", "Event", "Nonprofit", "Sponsor"].includes(entry.category))) return null;
-  return { ...value, published: false, visits: 0, clicks: 0, claims: 0, redemptions: 0 } as Experience;
+  const kind = value.kind === "ads" ? "board" : value.kind;
+  if (typeof kind !== "string" || !Object.hasOwn(EXPERIENCE_KINDS, kind)) return null;
+  const strings = Object.fromEntries(STRING_FIELDS.map(key => [key, typeof value[key] === "string" ? value[key] : ""])) as Record<(typeof STRING_FIELDS)[number], string>;
+  const entries = Array.isArray(value.entries) ? value.entries.flatMap((entry): Listing[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Record<string, unknown>;
+    if (typeof item.id !== "string" || typeof item.name !== "string") return [];
+    const category = item.category === "Event" || item.category === "Nonprofit" ? item.category : "Business";
+    return [{ id: item.id, name: item.name, description: typeof item.description === "string" ? item.description : "", url: typeof item.url === "string" ? item.url : "", category }];
+  }).slice(0, 12) : [];
+  const number = (raw: unknown, fallback: number) => typeof raw === "number" && Number.isFinite(raw) ? raw : fallback;
+  // Older configs used `headline` for the offer itself; keep it readable.
+  const message = strings.message || (kind === "offer" ? strings.headline : "");
+  return { ...strings, message, id: id || (typeof value.id === "string" ? value.id : ""), kind: kind as ExperienceKind, entries, stampsNeeded: number(value.stampsNeeded, 10), suggestedPrice: number(value.suggestedPrice, 125) };
 }
 
 export function currency(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
 }
 
-export function experiencePath(id: string, channel: Channel = "qr"): string {
-  return `/q/${encodeURIComponent(id)}?channel=${channel}`;
+export function cents(value: number): string {
+  return currency(value / 100);
 }
 
-export function campaignText(cafe: Cafe, introduction: string, experiences: Experience[], channel: Channel, origin: string): string {
-  return [cafe.name, introduction.trim(), ...experiences.map(experience => {
-    const description = experience.headline || EXPERIENCE_KINDS[experience.kind].label;
-    const link = experience.published ? `${origin}${experiencePath(experience.id, channel)}` : "[Publish this experience to add its link]";
-    return `${experience.name}\n${description}${experience.kind === "offer" ? `\n${experience.business} · ${experience.terms}\nValid through ${experience.expiresOn} (Pacific time)` : ""}\n${link}`;
-  })].filter(Boolean).join("\n\n");
+export function qrPath(qrCodeId: string): string {
+  return `/q/${encodeURIComponent(qrCodeId)}?channel=qr`;
+}
+
+export function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join("").toUpperCase();
 }
