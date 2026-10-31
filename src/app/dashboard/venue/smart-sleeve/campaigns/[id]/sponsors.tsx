@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cents, initials, type Cafe } from "@/lib/smart-sleeves";
@@ -61,15 +61,29 @@ export function Sponsors({ detail, origin, canEdit, notify }: { cafe: Cafe; deta
 function SponsorMenu({ sponsor, ready, origin, pending, onCopy, onRun }: { sponsor: Sponsor; ready: boolean; origin: string; pending: boolean; onCopy: (link: string) => void; onRun: (work: () => Promise<{ ok: boolean; error?: string }>, message: string) => void }) {
   const [open, setOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  return <div className="ss-menu">
+  const [pricing, setPricing] = useState(false);
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !menu.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+  const [price, setPrice] = useState(String(sponsor.priceCents / 100));
+  return <div className="ss-menu" ref={menu}>
     <Button variant="quiet" aria-label={`More actions for ${sponsor.businessName}`} aria-expanded={open} onClick={() => setOpen(!open)}>•••</Button>
-    {open && <div className="ss-menu-list" onMouseLeave={() => setOpen(false)}>
+    {open && <div className="ss-menu-list">
       <button type="button" onClick={() => { setOpen(false); onCopy(`${origin}/join/${sponsor.token}`); }}>Copy their invite link</button>
+      <button type="button" disabled={pending} onClick={() => { setOpen(false); setPrice(String(sponsor.priceCents / 100)); setPricing(true); }}>Change price</button>
       {sponsor.status !== "approved" && ready && <button type="button" disabled={pending} onClick={() => { setOpen(false); onRun(() => resendSponsorInvite(sponsor.id), "Invite re-sent."); }}>Resend invite</button>}
       {sponsor.status === "approved" && <button type="button" disabled={pending} onClick={() => { setOpen(false); onRun(() => updateSponsor(sponsor.id, { status: "declined" }), `${sponsor.businessName} is off your board.`); }}>Take off the board</button>}
       {sponsor.status !== "approved" && sponsor.status !== "declined" && <button type="button" disabled={pending} onClick={() => { setOpen(false); onRun(() => updateSponsor(sponsor.id, { status: "declined" }), "Request declined."); }}>Decline</button>}
       <button type="button" className="danger" onClick={() => { setOpen(false); setConfirmRemove(true); }}>Remove</button>
     </div>}
+    {pricing && <Modal title={`Price for ${sponsor.businessName}`} description="What they pay for this campaign. Use 0 to feature them for free." onClose={() => setPricing(false)}><Field label="Price ($)"><input type="number" min={0} max={100000} step="any" value={price} onChange={event => setPrice(event.target.value)} autoFocus /></Field><div className="ss-modal-actions"><Button variant="secondary" onClick={() => setPricing(false)}>Cancel</Button><Button disabled={pending || price.trim() === ""} onClick={() => { setPricing(false); onRun(() => updateSponsor(sponsor.id, { price: Number(price) }), "Price updated."); }}>Save price</Button></div></Modal>}
     {confirmRemove && <Modal title={`Remove ${sponsor.businessName}?`} description="They’ll come off your board and their invite link will stop working." onClose={() => setConfirmRemove(false)}><div className="ss-modal-actions"><Button variant="secondary" onClick={() => setConfirmRemove(false)}>Cancel</Button><Button disabled={pending} onClick={() => { setConfirmRemove(false); onRun(() => removeSponsor(sponsor.id), "Business removed."); }}>Remove</Button></div></Modal>}
   </div>;
 }
@@ -80,7 +94,7 @@ function AddSponsor({ campaignId, suggested, onClose, onDone }: { campaignId: st
   const [pending, startTransition] = useTransition();
   return <Modal title="Add a business" description="We’ll email them a link to add their logo and an offer. You approve it before it goes live." onClose={onClose}>
     <Field label="Business name"><input value={value.businessName} maxLength={100} placeholder="Alder Street Books" onChange={event => setValue({ ...value, businessName: event.target.value })} autoFocus /></Field>
-    <div className="ss-fields-two"><Field label="Contact email"><input type="email" value={value.email} maxLength={254} placeholder="hello@business.com" onChange={event => setValue({ ...value, email: event.target.value })} /></Field><Field label="Price for this campaign ($)" hint="0 = featured for free."><input type="number" min={0} max={100000} step={5} value={value.price} onChange={event => setValue({ ...value, price: event.target.value })} /></Field></div>
+    <div className="ss-fields-two"><Field label="Contact email"><input type="email" value={value.email} maxLength={254} placeholder="hello@business.com" onChange={event => setValue({ ...value, email: event.target.value })} /></Field><Field label="Price for this campaign ($)" hint="0 = featured for free."><input type="number" min={0} max={100000} step="any" value={value.price} onChange={event => setValue({ ...value, price: event.target.value })} /></Field></div>
     <p className="ss-detail-text">There’s no online payment yet. Collect payment your usual way, then mark it paid here.</p>
     {error && <p className="ss-error" role="alert">{error}</p>}
     <div className="ss-modal-actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={pending} onClick={() => startTransition(async () => {

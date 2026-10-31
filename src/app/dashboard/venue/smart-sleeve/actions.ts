@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { createClient } from "@/lib/supabase/server";
 import { sendTextEmail } from "@/lib/email";
-import { cents, isExpired, parseExperience, PLACEMENTS, SLEEVE_DESIGNS, SLEEVE_SIZES, sleeveQuote, validEmail, validUrl, validateExperience, type Placement } from "@/lib/smart-sleeves";
+import { cents, isExpired, normalizeUrl, parseExperience, PLACEMENTS, SLEEVE_DESIGNS, SLEEVE_SIZES, sleeveQuote, validEmail, validUrl, validateExperience, type Placement } from "@/lib/smart-sleeves";
 import { shipToText, workspaceOwner } from "@/lib/smart-sleeves-server";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -181,6 +181,8 @@ export async function addSponsor(campaignId: string, input: { businessName: stri
     if (!businessName || businessName.length > 100) return { ok: false, error: "Business name is required." };
     if (!validEmail(email)) return { ok: false, error: "Enter a valid email." };
     if (!Number.isFinite(price) || price < 0 || price > 100000) return { ok: false, error: "Enter a valid amount." };
+    const existing = await prisma.smartSponsor.findFirst({ where: { experienceId: campaignId, email }, select: { businessName: true } });
+    if (existing) return { ok: false, error: `${existing.businessName} already uses that email on this campaign. Use the actions on their row instead.` };
     const sponsor = await prisma.smartSponsor.create({ data: { venueId, experienceId: campaignId, businessName, email, priceCents: Math.round(price * 100), status: "invited" } });
     const sent = await emailSponsorInvite(sponsor, campaign.venue.name, await ownerEmail());
     if (!sent.sent) console.error("Sponsor invite email not sent", sent.error);
@@ -262,21 +264,45 @@ export async function saveProfile(input: { name: string }): Promise<Result> {
   });
 }
 
-export async function saveBusiness(input: { name: string; websiteUrl: string; street: string; suite: string; city: string; state: string; zip: string }): Promise<Result> {
+type AddressInput = { street: string; suite: string; city: string; state: string; zip: string };
+
+function cleanAddress(input: AddressInput): AddressInput | string {
+  const value = Object.fromEntries((["street", "suite", "city", "state", "zip"] as const).map(key => [key, String(input[key] ?? "").trim()])) as AddressInput;
+  if (!value.street || value.street.length > 200) return "Street address is required.";
+  if (value.suite.length > 60) return "Please shorten the suite or unit.";
+  if (!value.city || value.city.length > 100) return "City is required.";
+  if (!/^[A-Za-z]{2}$/.test(value.state)) return "Use a 2-letter state code.";
+  if (!/^\d{5}(-\d{4})?$/.test(value.zip)) return "Enter a valid ZIP code.";
+  return { ...value, state: value.state.toUpperCase() };
+}
+
+function addressData(value: AddressInput) {
+  return {
+    street: value.street, suite: value.suite || null, city: value.city, state: value.state, zip: value.zip,
+    address: `${[value.street, value.suite].filter(Boolean).join(", ")}, ${value.city}, ${value.state} ${value.zip}`,
+  };
+}
+
+export async function saveBusiness(input: { name: string; websiteUrl: string } & AddressInput): Promise<Result> {
   return run("save your business details", async venueId => {
-    const value = Object.fromEntries(Object.entries(input).map(([key, raw]) => [key, String(raw ?? "").trim()])) as typeof input;
-    if (!value.name || value.name.length > 100) return { ok: false, error: "Business name is required." };
-    if (value.websiteUrl && !validUrl(value.websiteUrl)) return { ok: false, error: "Enter a full website address, starting with https://." };
-    if (!value.street || value.street.length > 200) return { ok: false, error: "Street address is required." };
-    if (value.suite.length > 60) return { ok: false, error: "Please shorten the suite or unit." };
-    if (!value.city || value.city.length > 100) return { ok: false, error: "City is required." };
-    if (!/^[A-Za-z]{2}$/.test(value.state)) return { ok: false, error: "Use a 2-letter state code." };
-    if (!/^\d{5}(-\d{4})?$/.test(value.zip)) return { ok: false, error: "Enter a valid ZIP code." };
-    const state = value.state.toUpperCase();
-    await prisma.venue.update({ where: { id: venueId }, data: {
-      name: value.name, websiteUrl: value.websiteUrl || null, street: value.street, suite: value.suite || null, city: value.city, state, zip: value.zip,
-      address: `${[value.street, value.suite].filter(Boolean).join(", ")}, ${value.city}, ${state} ${value.zip}`,
-    } });
+    const name = String(input.name ?? "").trim();
+    const websiteUrl = normalizeUrl(String(input.websiteUrl ?? ""));
+    if (!name || name.length > 100) return { ok: false, error: "Business name is required." };
+    if (websiteUrl && !validUrl(websiteUrl)) return { ok: false, error: "Enter a website address, like yourcafe.com." };
+    const address = cleanAddress(input);
+    if (typeof address === "string") return { ok: false, error: address };
+    await prisma.venue.update({ where: { id: venueId }, data: { name, websiteUrl: websiteUrl || null, ...addressData(address) } });
+    refresh();
+    return { ok: true };
+  });
+}
+
+/** Just the shipping address, from the sleeve order step. */
+export async function saveShippingAddress(input: AddressInput): Promise<Result> {
+  return run("save your address", async venueId => {
+    const address = cleanAddress(input);
+    if (typeof address === "string") return { ok: false, error: address };
+    await prisma.venue.update({ where: { id: venueId }, data: addressData(address) });
     refresh();
     return { ok: true };
   });

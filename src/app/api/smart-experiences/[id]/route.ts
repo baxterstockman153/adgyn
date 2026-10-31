@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const phone = typeof body.phone === "string" ? body.phone.trim().slice(0, 30) : "";
       if (!validEmail(email)) return NextResponse.json({ error: "Please enter a valid email." }, { status: 400 });
       await prisma.smartContact.upsert({
-        where: { venueId_email: { venueId: record.venueId, email } },
+        where: { experienceId_email: { experienceId: id, email } },
         update: { ...(name ? { name } : {}), ...(phone ? { phone } : {}) },
         create: { venueId: record.venueId, experienceId: id, email, name, phone },
       });

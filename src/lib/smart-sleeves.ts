@@ -92,14 +92,14 @@ export const SLEEVE_TIERS = [
   { quantity: 5000, unitPrice: 0.24 },
 ] as const;
 const SHIPPING = 24;
-const TAX_RATE = 0.0875;
+const TAX_BASIS_POINTS = 875; // 8.75%
 
 export function sleeveQuote(quantity: number) {
   const tier = SLEEVE_TIERS.find(item => item.quantity === quantity) ?? SLEEVE_TIERS[1];
   const cents = (dollars: number) => Math.round(dollars * 100);
   const subtotal = cents(tier.quantity * tier.unitPrice);
   const shipping = cents(SHIPPING);
-  const tax = Math.round(subtotal * TAX_RATE);
+  const tax = Math.round(subtotal * TAX_BASIS_POINTS / 10_000);
   return { quantity: tier.quantity, unitPrice: tier.unitPrice, subtotal, shipping, tax, total: subtotal + shipping + tax };
 }
 
@@ -120,6 +120,13 @@ export function newExperience(kind: ExperienceKind, cafeName: string, location =
     case "newsletter": return { ...base, headline: "Be the first to know", message: "New drinks, events, and neighborhood news. No spam.", buttonLabel: "Sign me up" };
     case "loyalty": return { ...base, headline: "Every cup counts", message: "Join our regulars list and we’ll keep track of your visits.", reward: "10th drink free", buttonLabel: "Join" };
   }
+}
+
+/** Adds https:// to a bare address like "mycafe.com/menu"; leaves anything else alone. */
+export function normalizeUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed || /^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed;
+  return /^[^\s/]+\.[a-z]{2,}(?:[/?#:]\S*)?$/i.test(trimmed) ? `https://${trimmed}` : trimmed;
 }
 
 export function validUrl(value: string): boolean {
@@ -146,6 +153,16 @@ function validDate(value: string): boolean {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+/** Today's date in Pacific time, as YYYY-MM-DD. */
+export function todayPacific(now = Date.now()): string {
+  return pacificToday(now);
+}
+
+/** "Nov 29, 2026" for a YYYY-MM-DD date. */
+export function formatDay(value: string): string {
+  return validDate(value) ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`)) : value;
+}
+
 /** True once the Pacific-time date has passed `date` (inclusive end date). Invalid dates count as expired. */
 export function isExpired(date: string, now = Date.now()): boolean {
   return !validDate(date) || pacificToday(now) > date;
@@ -167,8 +184,9 @@ export function validateExperience(value: Experience): string | null {
   if (!(value.kind in EXPERIENCE_KINDS)) return "Choose what customers should experience.";
   if (!value.headline.trim()) return "Add a headline.";
   if (value.endsOn && !validDate(value.endsOn)) return "Choose a valid end date.";
+  if (value.endsOn && isExpired(value.endsOn)) return "Pick a last day that hasn’t passed yet. To stop a campaign now, pause or archive it.";
   if (value.kind === "link") {
-    if (!validUrl(value.url)) return "Enter a full website address, starting with https://.";
+    if (!validUrl(normalizeUrl(value.url))) return "Enter a website address, like yourcafe.com/order.";
     if (!value.buttonLabel.trim()) return "Add a button label.";
   }
   if (value.kind === "offer") {
@@ -179,7 +197,7 @@ export function validateExperience(value: Experience): string | null {
   if (value.kind === "loyalty" && !value.reward.trim()) return "Add the reward members are working toward.";
   if (value.kind === "board") {
     if (value.entries.length > 12) return "A board can carry up to twelve of your own listings.";
-    if (value.entries.some(entry => !entry.name.trim() || entry.name.length > 100 || entry.description.length > 400 || (entry.url && !validUrl(entry.url)))) return "Each listing needs a name, and any link must be a full website address.";
+    if (value.entries.some(entry => !entry.name.trim() || entry.name.length > 100 || entry.description.length > 400 || (entry.url && !validUrl(normalizeUrl(entry.url))))) return "Each listing needs a name, and any link must be a website address.";
     if (!Number.isFinite(value.suggestedPrice) || value.suggestedPrice < 0 || value.suggestedPrice > 100000) return "Enter a valid suggested sponsorship.";
   }
   return null;
@@ -199,12 +217,12 @@ export function parseExperience(input: unknown, id = ""): Experience | null {
     const item = entry as Record<string, unknown>;
     if (typeof item.id !== "string" || typeof item.name !== "string") return [];
     const category = item.category === "Event" || item.category === "Nonprofit" ? item.category : "Business";
-    return [{ id: item.id, name: item.name, description: typeof item.description === "string" ? item.description : "", url: typeof item.url === "string" ? item.url : "", category }];
+    return [{ id: item.id, name: item.name, description: typeof item.description === "string" ? item.description : "", url: typeof item.url === "string" ? normalizeUrl(item.url) : "", category }];
   }).slice(0, 12) : [];
   const number = (raw: unknown, fallback: number) => typeof raw === "number" && Number.isFinite(raw) ? raw : fallback;
   // Older configs used `headline` for the offer itself; keep it readable.
   const message = strings.message || (kind === "offer" ? strings.headline : "");
-  return { ...strings, message, id: id || (typeof value.id === "string" ? value.id : ""), kind: kind as ExperienceKind, entries, stampsNeeded: number(value.stampsNeeded, 10), suggestedPrice: number(value.suggestedPrice, 125) };
+  return { ...strings, url: normalizeUrl(strings.url), message, id: id || (typeof value.id === "string" ? value.id : ""), kind: kind as ExperienceKind, entries, stampsNeeded: number(value.stampsNeeded, 10), suggestedPrice: number(value.suggestedPrice, 125) };
 }
 
 export function currency(value: number): string {

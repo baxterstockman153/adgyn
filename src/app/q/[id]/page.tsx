@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { campaignStatus, parseExperience, type Cafe } from "@/lib/smart-sleeves";
-import { publicSponsors, requestChannel } from "@/lib/smart-sleeves-server";
+import { existingClaimId, publicSponsors, requestChannel } from "@/lib/smart-sleeves-server";
 import { PublicExperience } from "./public-experience";
 import "@/app/dashboard/venue/smart-sleeve/workspace.css";
 
@@ -27,5 +27,6 @@ export default async function ExperiencePage({ params, searchParams }: { params:
   const channel = requestChannel(query.channel ?? null);
   if (experience.kind === "link" && !preview) redirect(`/q/${id}/go?channel=${channel}`);
   const sponsors = experience.kind === "board" ? await publicSponsors(record.id) : [];
-  return <div className="ss">{preview && <div className="ss-public-banner">Customer preview · no activity is recorded</div>}<main className="ss-public"><PublicExperience cafe={cafe} experience={experience} sponsors={sponsors} qrCodeId={code.id} channel={channel} preview={preview} /></main></div>;
+  const savedClaim = experience.kind === "offer" && !preview ? await existingClaimId(record.id) : undefined;
+  return <div className="ss">{preview && <div className="ss-public-banner">Customer preview · no activity is recorded</div>}<main className="ss-public"><PublicExperience cafe={cafe} experience={experience} sponsors={sponsors} qrCodeId={code.id} channel={channel} preview={preview} savedClaim={savedClaim} /></main></div>;
 }

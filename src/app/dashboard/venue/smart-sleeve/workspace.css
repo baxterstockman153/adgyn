@@ -440,3 +440,15 @@
   .ss-row-metric { min-width: 0; }
   .ss-topbar-right .ss-button { padding-inline: 10px; }
 }
+
+/* Cards holding a row menu must not clip it. */
+.ss-card:has(.ss-menu) { overflow: visible; }
+.ss-button.danger { color: #9e4833; }
+.ss-kind-switch { margin-bottom: 18px; border: 1px solid var(--ss-line); border-radius: 12px; padding: 12px 14px; }
+.ss-kind-switch > summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.ss-kind-switch[open] > summary { margin-bottom: 8px; }
+.ss-kind-switch .ss-choice-grid { margin-top: 12px; }
+.ss-ship-to-form { display: grid; gap: 2px; margin: 4px 0 14px; padding-top: 12px; border-top: 1px solid var(--ss-line); }
+.ss-ship-to-form h4 { margin: 0 0 8px; font-size: 13px; }
+.ss-ship-to-form .ss-button { justify-self: start; margin-top: 6px; }
+@media (max-width: 640px) { .ss-ship-to-form .ss-fields-three { grid-template-columns: 1fr; gap: 0; } }

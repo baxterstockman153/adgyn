@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const [campaigns, scans, contacts] = await Promise.all([
     loadCampaignSummaries(venue.id),
     loadVenueScans(venue.id, 30),
-    prisma.smartContact.count({ where: { venueId: venue.id } }),
+    prisma.smartContact.findMany({ where: { venueId: venue.id }, distinct: ["email"], select: { email: true } }).then(rows => rows.length),
   ]);
   const live = campaigns.filter(campaign => campaign.status === "active");
   const sponsors = campaigns.reduce((total, campaign) => total + campaign.sponsors, 0);

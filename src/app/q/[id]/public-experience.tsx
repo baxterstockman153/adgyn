@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import type { Cafe, Channel, Experience, PublicSponsor } from "@/lib/smart-sleeves";
 import { CustomerExperience, type SignupInput } from "@/app/dashboard/venue/smart-sleeve/customer-experience";
 
-export function PublicExperience({ cafe, experience, sponsors, qrCodeId, channel, preview }: { cafe: Cafe; experience: Experience; sponsors: PublicSponsor[]; qrCodeId: string; channel: Channel; preview: boolean }) {
-  const [claimId, setClaimId] = useState<string>();
+export function PublicExperience({ cafe, experience, sponsors, qrCodeId, channel, preview, savedClaim }: { cafe: Cafe; experience: Experience; sponsors: PublicSponsor[]; qrCodeId: string; channel: Channel; preview: boolean; savedClaim?: string }) {
+  const [claimId, setClaimId] = useState(savedClaim);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const endpoint = `/api/smart-experiences/${experience.id}`;
