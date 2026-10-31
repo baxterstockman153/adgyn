@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { EXPERIENCE_KINDS, newExperience, PLACEMENTS, validateExperience, type Cafe, type Experience, type ExperienceKind, type Placement } from "@/lib/smart-sleeves";
+import { EXPERIENCE_KINDS, formatDay, newExperience, PLACEMENTS, validateExperience, type Cafe, type Experience, type ExperienceKind, type Placement } from "@/lib/smart-sleeves";
 import { createCampaign } from "../../actions";
 import { ContentFields, DurationField, KindPicker } from "../../content-fields";
 import { CustomerExperience } from "../../customer-experience";
-import { DEFAULT_SLEEVES, OrderSummary, SleeveOptions, SleevePreview, type SleeveDraft } from "../../sleeve-options";
+import { DEFAULT_SLEEVES, OrderSummary, ShipToForm, SleeveOptions, SleevePreview, type SleeveDraft } from "../../sleeve-options";
 import { Button, Field, Icon, Notice } from "../../ui";
 
 const BASE = "/dashboard/venue/smart-sleeve";
@@ -39,7 +39,12 @@ export function NewCampaign({ cafe, location, shipTo, canCreate }: { cafe: Cafe;
       const invalid = validateExperience(full);
       if (invalid) return setError(invalid);
     }
-    setStep(step + 1);
+    go(step + 1);
+  }
+
+  function go(to: number) {
+    setStep(to);
+    window.scrollTo({ top: 0 });
   }
 
   function submit() {
@@ -82,7 +87,7 @@ export function NewCampaign({ cafe, location, shipTo, canCreate }: { cafe: Cafe;
       <div className="ss-card-header"><h3>Campaign summary</h3></div>
       <dl className="ss-summary">
         <div><dt>Name</dt><dd>{full.name}</dd></div>
-        <div><dt>Runs</dt><dd>{full.endsOn ? `Through ${full.endsOn}` : "Until you stop it"}</dd></div>
+        <div><dt>Runs</dt><dd>{full.endsOn ? `Through ${formatDay(full.endsOn)}` : "Until you stop it"}</dd></div>
         <div><dt>Experience</dt><dd>{EXPERIENCE_KINDS[full.kind].label} · “{full.headline}”</dd></div>
         <div><dt>QR code</dt><dd>{PLACEMENTS[placement]}{qr.label ? ` · “${qr.label}”` : ""}</dd></div>
         <div><dt>Sleeves</dt><dd>{launch === "sleeves" ? `${sleeves.quantity.toLocaleString()} × ${sleeves.size} · ${sleeves.design}` : "None (QR only)"}</dd></div>
@@ -91,10 +96,11 @@ export function NewCampaign({ cafe, location, shipTo, canCreate }: { cafe: Cafe;
     </div>
     <aside className="ss-card ss-card-pad ss-order-summary">{launch === "sleeves" ? <><h3>Order summary</h3><OrderSummary value={sleeves} shipTo={shipTo} /></> : <><h3>Ready to go</h3><p className="ss-detail-text">There’s nothing to pay. Your QR code is ready as soon as you create it.</p></>}
       <Button disabled={pending || !canCreate || (launch === "sleeves" && !shipTo)} onClick={submit}>{pending ? "Creating…" : launch === "sleeves" ? "Place order & launch campaign" : "Create QR code"}<Icon name="arrow" size={16} /></Button>
-      {launch === "sleeves" && !shipTo && <Link className="ss-button ss-button-secondary" href={`${BASE}/settings`}>Add your address</Link>}
+      {launch === "sleeves" && !shipTo && <ShipToForm onSaved={() => router.refresh()} />}
     </aside></div>}
 
     {error && <p className="ss-error" role="alert">{error}</p>}
-    <div className="ss-wizard-footer">{step > 0 ? <Button variant="secondary" disabled={pending} onClick={() => { setError(""); setStep(step - 1); }}>Back</Button> : <span />}{step < 3 && <Button onClick={next}>Continue<Icon name="arrow" size={16} /></Button>}</div>
+    <div className="ss-wizard-footer">{step > 0 ? <Button variant="secondary" disabled={pending} onClick={() => { setError(""); go(step - 1); }}>Back</Button> : <span />}{step < 3 && <Button onClick={next}>Continue<Icon name="arrow" size={16} /></Button>}</div>
   </>;
 }
+

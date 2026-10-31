@@ -426,8 +426,10 @@ model SmartContact {
   venue        Venue            @relation(fields: [venueId], references: [id], onDelete: Cascade)
   experience   SmartExperience? @relation(fields: [experienceId], references: [id], onDelete: SetNull)
 
-  @@unique([venueId, email])
-  @@index([experienceId])
+  // One row per person per campaign, so a regular who joins the newsletter
+  // and the loyalty list shows up in both.
+  @@unique([experienceId, email])
+  @@index([venueId])
   @@map("smart_contacts")
 }
 

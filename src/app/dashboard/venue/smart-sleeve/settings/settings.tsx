@@ -62,7 +62,7 @@ function BusinessForm({ initial, legacyAddress, canEdit, onSaved }: { initial: B
   return <Section id="business" title="Business details" description="Shown on customer pages and used as your default shipping address.">
     <form onSubmit={save(() => saveBusiness(value), onSaved)}>
       {legacyAddress && <div style={{ marginBottom: 18 }}><Notice>We have your address on file as “{legacyAddress}”. Add it below in separate fields so we can ship sleeves to you.</Notice></div>}
-      <div className="ss-fields-two"><Field label="Business name"><input maxLength={100} {...field("name")} /></Field><Field label="Website (optional)"><input type="url" placeholder="https://" maxLength={2048} {...field("websiteUrl")} /></Field></div>
+      <div className="ss-fields-two"><Field label="Business name"><input maxLength={100} {...field("name")} /></Field><Field label="Website (optional)"><input type="text" inputMode="url" autoCapitalize="off" placeholder="https://" maxLength={2048} {...field("websiteUrl")} /></Field></div>
       <div className="ss-fields-two"><Field label="Street address"><input maxLength={200} autoComplete="address-line1" {...field("street")} /></Field><Field label="Suite / unit (optional)"><input maxLength={60} autoComplete="address-line2" {...field("suite")} /></Field></div>
       <div className="ss-fields-three"><Field label="City"><input maxLength={100} autoComplete="address-level2" {...field("city")} /></Field><Field label="State"><input maxLength={2} placeholder="CA" autoComplete="address-level1" {...field("state")} /></Field><Field label="ZIP code"><input maxLength={10} inputMode="numeric" autoComplete="postal-code" {...field("zip")} /></Field></div>
       {error && <p className="ss-error" role="alert">{error}</p>}

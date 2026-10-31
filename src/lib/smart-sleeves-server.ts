@@ -140,9 +140,18 @@ export async function visitorKey(): Promise<string> {
   let token = store.get("adgyn_session")?.value;
   if (!token || !/^[a-f0-9-]{36}$/.test(token)) {
     token = randomUUID();
-    store.set("adgyn_session", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 86400, path: "/" });
+    store.set("adgyn_session", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 90 * 86400, path: "/" });
   }
   return createHash("sha256").update(token).digest("hex");
+}
+
+/** The visitor's coupon for this campaign, if they already saved one. Read-only, so pages can call it. */
+export async function existingClaimId(experienceId: string): Promise<string | undefined> {
+  const token = (await cookies()).get("adgyn_session")?.value;
+  if (!token || !/^[a-f0-9-]{36}$/.test(token)) return undefined;
+  const visitor = createHash("sha256").update(token).digest("hex");
+  const claim = await prisma.smartClaim.findUnique({ where: { experienceId_visitorKey: { experienceId, visitorKey: visitor } }, select: { id: true } });
+  return claim?.id;
 }
 
 export function requestChannel(value: string | null): Channel {

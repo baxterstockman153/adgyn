@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { sendTextEmail } from "@/lib/email";
-import { validEmail, validUrl } from "@/lib/smart-sleeves";
+import { normalizeUrl, validEmail, validUrl } from "@/lib/smart-sleeves";
 import { resolveJoinToken } from "./resolve";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.adgyn.com";
@@ -18,11 +18,11 @@ export async function submitSponsorProfile(token: string, input: { businessName:
     const businessName = String(input.businessName ?? "").trim();
     const email = String(input.email ?? "").trim().toLowerCase();
     const offer = String(input.offer ?? "").trim();
-    const url = String(input.url ?? "").trim();
+    const url = normalizeUrl(String(input.url ?? ""));
     const price = Number(input.price);
     if (!businessName || businessName.length > 100) return { ok: false, error: "Business name is required." };
     if (!offer || offer.length > 200) return { ok: false, error: "Add the offer customers will see." };
-    if (url && !validUrl(url)) return { ok: false, error: "Enter a full website address, starting with https://." };
+    if (url && !validUrl(url)) return { ok: false, error: "Enter a website address, like yourshop.com." };
     if (!validEmail(email)) return { ok: false, error: "Enter a valid email." };
     if (input.logoUrl && !input.logoUrl.startsWith(LOGO_PREFIX)) return { ok: false, error: "Please upload your logo again." };
     if (!sponsor && (!Number.isFinite(price) || price < 0 || price > 100000)) return { ok: false, error: "Enter a valid amount." };
