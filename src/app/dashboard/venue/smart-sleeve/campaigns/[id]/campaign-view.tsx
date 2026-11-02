@@ -169,6 +169,6 @@ function OrderDialog({ campaignId, shipTo, last, onClose, onDone }: { campaignId
     <OrderSummary value={value} shipTo={shipTo} />
     {!shipTo && <ShipToForm onSaved={() => router.refresh()} />}
     {error && <p className="ss-error" role="alert">{error}</p>}
-    <div className="ss-modal-actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={pending || !shipTo} onClick={() => startTransition(async () => { const result = await placeSleeveOrder(campaignId, value); if (result.ok) onDone(); else setError(result.error); })}>{pending ? "Placing order…" : "Place order"}</Button></div>
+    <div className="ss-modal-actions"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={pending || !shipTo} disabledReason={!shipTo ? "Save your shipping address above first." : undefined} onClick={() => startTransition(async () => { const result = await placeSleeveOrder(campaignId, value); if (result.ok) onDone(); else setError(result.error); })}>{pending ? "Placing order…" : "Place order"}</Button></div>
   </Modal>;
 }
