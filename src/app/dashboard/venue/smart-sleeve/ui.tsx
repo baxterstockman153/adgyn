@@ -24,6 +24,7 @@ const paths: Record<string, ReactNode> = {
   edit: <><path d="m15 5 4 4M4 20l5-1L21 7a2.8 2.8 0 0 0-4-4L5 15Zm0 0h16" /></>,
   leaf: <><path d="M20 3C9 2 2 6 5 15s16 6 15-12ZM5 20 16 9" /></>,
   pause: <><path d="M8 5v14M16 5v14" /></>,
+  palette: <><path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.7-.8 1.7-1.6 0-.5-.2-.8-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.4-9-7.4Z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7.5" r="1" /><circle cx="14.5" cy="7.5" r="1" /><circle cx="17" cy="11" r="1" /></>,
   play: <path d="M7 4v16l13-8Z" />,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></>,
   chart: <><path d="M3 3v18h18" /><path d="M7 15v2m4-6v6m4-9v9m4-12v12" /></>,
@@ -36,8 +37,12 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.arrow}</svg>;
 }
 
-export function Button({ children, variant = "primary", className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "quiet"; children: ReactNode }) {
-  return <button type="button" {...props} className={`ss-button ss-button-${variant} ${className}`}>{children}</button>;
+// Pass `disabledReason` whenever a button can be disabled for something the user
+// has to fix: it shows as a tooltip on hover/focus so the button never looks broken.
+export function Button({ children, variant = "primary", className = "", disabledReason, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "quiet"; children: ReactNode; disabledReason?: string }) {
+  const button = <button type="button" {...props} className={`ss-button ss-button-${variant} ${className}`}>{children}</button>;
+  if (!props.disabled || !disabledReason) return button;
+  return <span className="ss-button-tip" data-tip={disabledReason} tabIndex={0} aria-label={disabledReason}>{button}</span>;
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {

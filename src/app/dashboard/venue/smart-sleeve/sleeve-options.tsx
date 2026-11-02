@@ -1,16 +1,46 @@
 "use client";
 
-import { useState, useTransition, type ChangeEvent } from "react";
+import { useEffect, useState, useTransition, type ChangeEvent } from "react";
 import { cents, SLEEVE_DESIGNS, SLEEVE_SIZES, SLEEVE_TIERS, sleeveQuote } from "@/lib/smart-sleeves";
 import { saveShippingAddress } from "./actions";
-import { Button, Field } from "./ui";
+import { Button, Field, Icon } from "./ui";
 
 export type SleeveDraft = { quantity: number; size: string; design: string; instructions: string };
 export const DEFAULT_SLEEVES: SleeveDraft = { quantity: 1000, size: "12 oz", design: "Classic Kraft", instructions: "" };
 
-export function SleevePreview({ cafeName, design, label }: { cafeName: string; design: string; label: string }) {
+// The café's short name for the sleeve: "Gratitude Coffee Bar" prints as "Gratitude".
+function sleeveName(name: string) {
+  const short = name.replace(/\s+(coffee|caf[eé]|bar|roasters?|co\.?|company|house|shop|&)+(\s+(coffee|caf[eé]|bar|roasters?|co\.?|company|house|shop|&))*$/i, "").trim();
+  return short || name;
+}
+
+export function SleevePreview({ cafeName, logoUrl, design, label }: { cafeName: string; logoUrl?: string | null; design: string; label: string }) {
   const look = SLEEVE_DESIGNS.find(item => item.id === design) ?? SLEEVE_DESIGNS[0];
-  return <div className="ss-sleeve-preview" style={{ background: look.background, color: look.color }}><strong>{cafeName}</strong><span className="ss-sleeve-qr" aria-hidden="true" /><small>{label || "Scan for perks"}</small></div>;
+  const [qr, setQr] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    // Sample code for the preview; the real one is created at launch.
+    import("qrcode").then(encoder => encoder.toDataURL("https://app.adgyn.com/q/sleeve-preview", { width: 240, margin: 0, errorCorrectionLevel: "M", color: { dark: "#241a15", light: "#ffffff" } }))
+      .then(image => { if (!cancelled) setQr(image); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  const name = sleeveName(cafeName);
+  return <div className="ss-sleeve-card">
+    <div className="ss-sleeve-card-head"><span>Live preview</span><Icon name="palette" size={20} /></div>
+    <div className="ss-sleeve-shape" style={{ color: look.color }}>
+      <svg viewBox="0 0 440 210" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M30 22 Q220 58 410 22 L382 192 Q220 214 58 192 Z" fill="#00000014" />
+        <path d="M6 10 Q220 46 434 10 L398 180 Q220 202 42 180 Z" fill={look.background} />
+        <path d="M22 26 Q220 62 418 26" fill="none" stroke="currentColor" strokeOpacity=".55" strokeWidth="2" strokeDasharray="6 6" />
+      </svg>
+      <div className="ss-sleeve-content">
+        <div className="ss-sleeve-brand">{logoUrl ? <img src={logoUrl} alt="" /> : <span>{name.charAt(0).toUpperCase()}</span>}<strong>{name}</strong></div>
+        <div className="ss-sleeve-code">{qr ? <img src={qr} alt="" /> : <i />}<small>{label || "Scan for perks"}</small></div>
+      </div>
+    </div>
+    <ul className="ss-sleeve-notes"><li>Logo pulled from your brand kit in Settings.</li><li>QR code is permanent — change experiences without reprinting.</li></ul>
+  </div>;
 }
 
 export function SleeveOptions({ value, onChange }: { value: SleeveDraft; onChange: (value: SleeveDraft) => void }) {
