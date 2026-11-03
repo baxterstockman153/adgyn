@@ -363,6 +363,7 @@
 .ss-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ss-type-icon-newsletter { background: #e6edf0; color: #4e6a78; }
 .ss-type-icon-loyalty { background: #f5e4e4; color: #a0545a; }
+.ss-table-scroll { overflow-x: auto; }
 .ss-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .ss-table th { text-align: left; font-weight: 600; color: var(--ss-muted); font-size: 11px; padding: 11px 24px; border-top: 1px solid var(--ss-line); border-bottom: 1px solid var(--ss-line); background: #faf7f1; }
 .ss-table td { padding: 13px 24px; border-bottom: 1px solid var(--ss-line); }
@@ -457,6 +458,17 @@
   .ss-summary > div { grid-template-columns: 1fr; gap: 3px; }
   .ss-row-metric { min-width: 0; }
   .ss-topbar-right .ss-button { padding-inline: 10px; }
+  .ss-wordmark { color: var(--ss-ink); }
+  .ss-card-header { flex-wrap: wrap; }
+  .ss-card-header > div:first-child { flex: 1 1 220px; }
+  /* Campaign rows: name on top, scans and status underneath. */
+  .ss-row-link { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "icon text text chevron" "icon metric badge chevron"; column-gap: 12px; row-gap: 8px; }
+  .ss-row-link > .ss-type-icon { grid-area: icon; align-self: start; }
+  .ss-row-link > .ss-row-text { grid-area: text; }
+  .ss-row-link > .ss-row-metric { grid-area: metric; display: flex; align-items: baseline; gap: 5px; text-align: left; }
+  .ss-row-link > .ss-badge { grid-area: badge; justify-self: end; }
+  .ss-row-link > svg:last-child { grid-area: chevron; }
+  .ss-table-scroll .ss-table td, .ss-table-scroll .ss-table th { white-space: nowrap; }
 }
 
 /* Cards holding a row menu must not clip it. */
