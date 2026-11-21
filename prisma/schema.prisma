@@ -71,6 +71,10 @@ model Venue {
   outreachFromName   String?    @map("outreach_from_name")
   outreachFromEmail  String?    @map("outreach_from_email")
   outreachReplyTo    String?    @map("outreach_reply_to")
+  // Smart Sleeves café page (the public link hub at /<slug>) and event space
+  // settings. Shapes and parsers live in src/lib/cafe-page.ts.
+  cafePage           Json?      @map("cafe_page")
+  eventSpace         Json?      @map("event_space")
   createdAt          DateTime   @default(now()) @map("created_at")
   campaigns          Campaign[]
   prospects          Prospect[]
@@ -80,6 +84,7 @@ model Venue {
   smartContacts      SmartContact[]
   smartSponsors      SmartSponsor[]
   sleeveOrders       SleeveOrder[]
+  cafeEvents         CafeEvent[]
 
   @@map("venues")
 }
@@ -482,4 +487,36 @@ model SleeveOrder {
 
   @@index([venueId])
   @@map("sleeve_orders")
+}
+
+// An event in the café's space: a host request from the public form
+// (source "request", starts "pending" until the café approves or declines it)
+// or one the café added itself (source "cafe", approved). `date` and the times
+// are café-local (Pacific) strings: YYYY-MM-DD and HH:MM. Public events show on
+// the café's events page; private parties don't.
+model CafeEvent {
+  id          String    @id @default(uuid())
+  venueId     String    @map("venue_id")
+  source      String    @default("request")
+  status      String    @default("pending")
+  title       String
+  eventType   String    @map("event_type")
+  date        String
+  startTime   String    @map("start_time")
+  endTime     String    @map("end_time")
+  partySize   Int       @default(0) @map("party_size")
+  isPublic    Boolean   @default(false) @map("is_public")
+  description String    @default("")
+  hostName    String    @default("") @map("host_name")
+  email       String    @default("")
+  phone       String    @default("")
+  notes       String    @default("")
+  replyNote   String    @default("") @map("reply_note")
+  decidedAt   DateTime? @map("decided_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  venue       Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, date])
+  @@map("cafe_events")
 }

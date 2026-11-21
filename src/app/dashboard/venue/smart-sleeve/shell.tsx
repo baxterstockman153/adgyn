@@ -12,6 +12,8 @@ export const BASE = "/dashboard/venue/smart-sleeve";
 const NAV = [
   { href: BASE, label: "Dashboard", icon: "home" },
   { href: `${BASE}/campaigns`, label: "Campaigns", icon: "qr" },
+  { href: `${BASE}/events`, label: "Events", icon: "calendar" },
+  { href: `${BASE}/cafe-page`, label: "Café page", icon: "link" },
   { href: `${BASE}/settings`, label: "Settings", icon: "settings" },
 ];
 

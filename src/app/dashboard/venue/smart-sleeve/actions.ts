@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { sendTextEmail } from "@/lib/email";
 import { cents, isExpired, normalizeUrl, parseExperience, PLACEMENTS, SLEEVE_DESIGNS, SLEEVE_SIZES, sleeveQuote, validEmail, validUrl, validateExperience, type Placement } from "@/lib/smart-sleeves";
 import { shipToText, workspaceOwner } from "@/lib/smart-sleeves-server";
+import { cleanEvent, parseCafePage, parseEventSpace, validateCafePage, validateEventSpace, type EventInput } from "@/lib/cafe-page";
+import { emailDecision, eventView } from "@/lib/cafe-events-server";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -317,5 +319,56 @@ export async function saveBranding(input: { logoUrl: string | null; iconUrl: str
     await prisma.venue.update({ where: { id: venueId }, data: { logoUrl: input.logoUrl, iconUrl: input.iconUrl } });
     refresh();
     return { ok: true };
+  });
+}
+
+export async function saveCafePage(input: unknown): Promise<Result> {
+  return run("save your café page", async venueId => {
+    const venue = await prisma.venue.findUniqueOrThrow({ where: { id: venueId }, select: { websiteUrl: true } });
+    const page = parseCafePage(input, venue.websiteUrl);
+    const invalid = validateCafePage(page);
+    if (invalid) return { ok: false, error: invalid };
+    await prisma.venue.update({ where: { id: venueId }, data: { cafePage: page as unknown as Prisma.InputJsonValue } });
+    refresh();
+    return { ok: true };
+  });
+}
+
+export async function saveEventSpace(input: unknown): Promise<Result> {
+  return run("save your event space", async venueId => {
+    const space = parseEventSpace(input);
+    const invalid = validateEventSpace(space);
+    if (invalid) return { ok: false, error: invalid };
+    await prisma.venue.update({ where: { id: venueId }, data: { eventSpace: space as unknown as Prisma.InputJsonValue } });
+    refresh();
+    return { ok: true };
+  });
+}
+
+/** Approve, decline, or cancel an event. Emails the host when there is one. */
+export async function decideEvent(id: string, input: { status: "approved" | "declined" | "canceled"; note: string; isPublic: boolean; notify: boolean }): Promise<Result<{ emailed: boolean }>> {
+  return run<{ emailed: boolean }>("update this event", async venueId => {
+    const event = await prisma.cafeEvent.findFirst({ where: { id, venueId }, include: { venue: true } });
+    if (!event) return { ok: false, error: "Event not found." };
+    if (!["approved", "declined", "canceled"].includes(input.status)) return { ok: false, error: "Choose what to do with this event." };
+    if (input.status !== "canceled" && event.status !== "pending") return { ok: false, error: "This request was already answered." };
+    if (input.status === "canceled" && event.status !== "approved") return { ok: false, error: "Only booked events can be canceled." };
+    const note = String(input.note ?? "").trim().slice(0, 1000);
+    const updated = await prisma.cafeEvent.update({ where: { id }, data: { status: input.status, replyNote: note, decidedAt: new Date(), ...(input.status === "approved" ? { isPublic: input.isPublic === true } : {}) } });
+    const emailed = input.notify !== false && event.source === "request" ? await emailDecision(eventView(updated), event.venue) : false;
+    refresh();
+    return { ok: true, emailed };
+  });
+}
+
+/** An event the café adds itself (a phone booking, its own open mic…). Booked right away. */
+export async function addCafeEvent(input: Partial<EventInput>): Promise<Result<{ id: string }>> {
+  return run<{ id: string }>("add this event", async venueId => {
+    const venue = await prisma.venue.findUniqueOrThrow({ where: { id: venueId } });
+    const event = cleanEvent(input, parseEventSpace(venue.eventSpace), { request: false });
+    if (typeof event === "string") return { ok: false, error: event };
+    const created = await prisma.cafeEvent.create({ data: { venueId, source: "cafe", status: "approved", decidedAt: new Date(), ...event, hostName: event.hostName || venue.name } });
+    refresh();
+    return { ok: true, id: created.id };
   });
 }
