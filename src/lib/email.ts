@@ -138,17 +138,19 @@ export async function sendOutreachEmail({
 }
 
 // Plain-text transactional email from the default Adgyn sender (Smart Sleeves
-// sponsor invites, sleeve order notices).
+// sponsor invites, sleeve order notices, café event emails).
 export async function sendTextEmail({
   to,
   subject,
   text,
   replyTo,
+  attachments,
 }: {
   to: string | string[];
   subject: string;
   text: string;
   replyTo?: string;
+  attachments?: { filename: string; content: string; contentType?: string }[];
 }): Promise<SendResult> {
   if (!resend) {
     return { sent: false, error: "RESEND_API_KEY not configured" };
@@ -160,6 +162,7 @@ export async function sendTextEmail({
       subject,
       text,
       ...(replyTo ? { replyTo } : {}),
+      ...(attachments?.length ? { attachments: attachments.map(file => ({ ...file, content: Buffer.from(file.content) })) } : {}),
     });
     if (error) return { sent: false, error: error.message };
     return { sent: true };

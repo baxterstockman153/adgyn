@@ -3,7 +3,7 @@
 // A campaign is a `SmartExperience` row. Its `config` JSON is an `Experience`:
 // what customers see when they scan any of the campaign's QR codes.
 
-export type ExperienceKind = "board" | "link" | "offer" | "newsletter" | "loyalty";
+export type ExperienceKind = "board" | "link" | "offer" | "newsletter" | "loyalty" | "page";
 export type Placement = "sleeve" | "signage" | "tabletop" | "window" | "counter" | "menu" | "bag" | "wifi" | "other";
 export type Channel = "qr" | "email" | "social" | "direct";
 export type CampaignStatus = "draft" | "active" | "paused" | "ended" | "archived";
@@ -69,6 +69,7 @@ export const EXPERIENCE_KINDS: Record<ExperienceKind, { label: string; descripti
   offer: { label: "Smart Coupon", description: "Discounts customers save to their phone, with every redemption tracked.", icon: "ticket", action: "Coupons claimed" },
   newsletter: { label: "Newsletter Signup", description: "Grow your email list with a quick, friendly signup.", icon: "mail", action: "Signups" },
   loyalty: { label: "Loyalty Program", description: "Invite regulars to join your rewards list.", icon: "heart", action: "Members joined" },
+  page: { label: "Café Page", description: "Send customers to your café page: events, menu, Community Board, and more.", icon: "link", action: "Visits" },
 };
 
 export const PLACEMENTS: Record<Placement, string> = {
@@ -118,6 +119,7 @@ export function newExperience(kind: ExperienceKind, cafeName: string, location =
     case "link": return { ...base, headline: "Order ahead, skip the line", message: "Your next coffee, one tap away.", buttonLabel: "Download the app" };
     case "offer": return { ...base, headline: "A little thank-you from us", message: "$1 off your next latte", terms: "Show this screen at the register to redeem. One per guest.", code: "THANKYOU" };
     case "newsletter": return { ...base, headline: "Be the first to know", message: "New drinks, events, and neighborhood news. No spam.", buttonLabel: "Sign me up" };
+    case "page": return { ...base, headline: `Everything at ${cafeName}` };
     case "loyalty": return { ...base, headline: "Every cup counts", message: "Join our regulars list and we’ll keep track of your visits.", reward: "10th drink free", buttonLabel: "Join" };
   }
 }

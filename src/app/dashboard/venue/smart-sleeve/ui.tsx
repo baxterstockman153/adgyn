@@ -30,6 +30,11 @@ const paths: Record<string, ReactNode> = {
   chart: <><path d="M3 3v18h18" /><path d="M7 15v2m4-6v6m4-9v9m4-12v12" /></>,
   users: <><circle cx="9" cy="8" r="4" /><path d="M2 21v-1a6 6 0 0 1 12 0v1m2-17a4 4 0 0 1 0 8m6 9v-1a6 6 0 0 0-4-5.6" /></>,
   archive: <><rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9m-9 4h4" /></>,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4m8-4v4" /></>,
+  bag: <><path d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1Z" /><path d="M9 10V7a3 3 0 0 1 6 0v3" /></>,
+  camera: <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><path d="M17.5 6.5h.01" /></>,
+  up: <path d="m6 15 6-6 6 6" />,
+  down: <path d="m6 9 6 6 6-6" />,
   link: <><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></>,
 };
 

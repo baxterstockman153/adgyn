@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Experience, ExperienceKind, Listing } from "@/lib/smart-sleeves";
 import { EXPERIENCE_KINDS, todayPacific } from "@/lib/smart-sleeves";
 import { Badge, Button, Field, Icon } from "./ui";
@@ -9,13 +10,14 @@ import { Badge, Button, Field, Icon } from "./ui";
 export function KindPicker({ value, onPick }: { value: ExperienceKind | null; onPick: (kind: ExperienceKind) => void }) {
   return <div className="ss-choice-grid ss-choice-grid-3">
     {(Object.keys(EXPERIENCE_KINDS) as ExperienceKind[]).map(kind => <button key={kind} type="button" className="ss-choice" aria-pressed={value === kind} onClick={() => onPick(kind)}><span className={`ss-type-icon ss-type-icon-${kind}`}><Icon name={EXPERIENCE_KINDS[kind].icon} size={19} /></span><strong>{EXPERIENCE_KINDS[kind].label}</strong><small>{EXPERIENCE_KINDS[kind].description}</small>{value === kind && <span className="ss-choice-check"><Icon name="check" size={15} /></span>}</button>)}
-    <div className="ss-choice ss-choice-soon" aria-disabled="true"><span className="ss-type-icon"><Icon name="plus" size={19} /></span><strong>More Experiences <Badge>Coming soon</Badge></strong><small>Menus, events, surveys, and custom landing pages.</small></div>
+    <div className="ss-choice ss-choice-soon" aria-disabled="true"><span className="ss-type-icon"><Icon name="plus" size={19} /></span><strong>More Experiences <Badge>Coming soon</Badge></strong><small>Surveys, reservations, and more.</small></div>
   </div>;
 }
 
 /** The editable content for a campaign of any kind. */
 export function ContentFields({ value, onChange }: { value: Experience; onChange: (patch: Partial<Experience>) => void }) {
   const updateListing = (id: string, patch: Partial<Listing>) => onChange({ entries: value.entries.map(entry => entry.id === id ? { ...entry, ...patch } : entry) });
+  if (value.kind === "page") return <p className="ss-detail-text">Customers who scan go straight to your café page. Choose what’s on it under <Link href="/dashboard/venue/smart-sleeve/cafe-page">Café page</Link>. Scans still count toward this campaign and its QR codes.</p>;
   return <>
     <Field label="Headline"><input value={value.headline} maxLength={200} onChange={event => onChange({ headline: event.target.value })} /></Field>
     <Field label={value.kind === "offer" ? "The offer" : "Message"} hint={value.kind === "offer" ? "e.g. $1 off your next latte" : undefined}><textarea value={value.message} maxLength={500} onChange={event => onChange({ message: event.target.value })} /></Field>

@@ -25,7 +25,7 @@ export default async function ExperiencePage({ params, searchParams }: { params:
   const status = campaignStatus(record, experience);
   if (status !== "active" && !preview) return <div className="ss"><main className="ss-public"><div className="ss-card ss-card-pad ss-empty"><h1>{cafe.name}</h1><p>{status === "ended" || status === "archived" ? "This campaign has wrapped up. Thanks for scanning!" : "This page is taking a little break. Please check back soon."}</p></div></main></div>;
   const channel = requestChannel(query.channel ?? null);
-  if (experience.kind === "link" && !preview) redirect(`/q/${id}/go?channel=${channel}`);
+  if ((experience.kind === "link" || experience.kind === "page") && !preview) redirect(`/q/${id}/go?channel=${channel}`);
   const sponsors = experience.kind === "board" ? await publicSponsors(record.id) : [];
   const savedClaim = experience.kind === "offer" && !preview ? await existingClaimId(record.id) : undefined;
   return <div className="ss">{preview && <div className="ss-public-banner">Customer preview · no activity is recorded</div>}<main className="ss-public"><PublicExperience cafe={cafe} experience={experience} sponsors={sponsors} qrCodeId={code.id} channel={channel} preview={preview} savedClaim={savedClaim} /></main></div>;
